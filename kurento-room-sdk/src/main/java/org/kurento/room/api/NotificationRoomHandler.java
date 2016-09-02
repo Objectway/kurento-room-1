@@ -115,7 +115,7 @@ public interface NotificationRoomHandler extends RoomHandler {
    *          null, then the operation was unsuccessful and the user should be responded
    *          accordingly.
    */
-  void onPublishMedia(ParticipantRequest request, String publisherName, String sdpAnswer,
+  void onPublishMedia(ParticipantRequest request, String publisherName, final String streamId, final String streamType, String sdpAnswer,
       Set<UserParticipant> participants, RoomException error);
 
   /**
@@ -135,7 +135,7 @@ public interface NotificationRoomHandler extends RoomHandler {
    *          null, then the operation was unsuccessful and the user should be responded
    *          accordingly.
    */
-  void onUnpublishMedia(ParticipantRequest request, String publisherName,
+  void onUnpublishMedia(ParticipantRequest request, String publisherName, final String streamId,
       Set<UserParticipant> participants, RoomException error);
 
   /**
