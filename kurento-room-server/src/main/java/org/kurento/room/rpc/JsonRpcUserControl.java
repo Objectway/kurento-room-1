@@ -72,34 +72,38 @@ public class JsonRpcUserControl {
   public void publishVideo(Transaction transaction, Request<JsonObject> request,
       ParticipantRequest participantRequest) {
     String sdpOffer = getStringParam(request, ProtocolElements.PUBLISHVIDEO_SDPOFFER_PARAM);
+    final String streamId = getStringParam(request, ProtocolElements.PUBLISHVIDEO_STREAMID_PARAM);
+    final String streamType = getStringParam(request, ProtocolElements.PUBLISHVIDEO_STREAMTYPE_PARAM);
     boolean doLoopback = getBooleanParam(request, ProtocolElements.PUBLISHVIDEO_DOLOOPBACK_PARAM);
 
-    roomManager.publishMedia(participantRequest, sdpOffer, doLoopback);
+    roomManager.publishMedia(participantRequest, streamId, streamType, sdpOffer, doLoopback);
   }
 
   public void unpublishVideo(Transaction transaction, Request<JsonObject> request,
       ParticipantRequest participantRequest) {
-    roomManager.unpublishMedia(participantRequest);
+    final String streamId = getStringParam(request, ProtocolElements.UNPUBLISHVIDEO_STREAMID_PARAM);
+    roomManager.unpublishMedia(participantRequest, streamId);
   }
 
   public void receiveVideoFrom(final Transaction transaction, final Request<JsonObject> request,
       ParticipantRequest participantRequest) {
 
     String senderName = getStringParam(request, ProtocolElements.RECEIVEVIDEO_SENDER_PARAM);
-    senderName = senderName.substring(0, senderName.indexOf("_"));
+    final String streamId = getStringParam(request, ProtocolElements.RECEIVEVIDEO_STREAMID_PARAM);
+    // senderName = senderName.substring(0, senderName.indexOf("_"));
 
     String sdpOffer = getStringParam(request, ProtocolElements.RECEIVEVIDEO_SDPOFFER_PARAM);
-
-    roomManager.subscribe(senderName, sdpOffer, participantRequest);
+    roomManager.subscribe(senderName, streamId, sdpOffer, participantRequest);
   }
 
   public void unsubscribeFromVideo(Transaction transaction, Request<JsonObject> request,
       ParticipantRequest participantRequest) {
 
     String senderName = getStringParam(request, ProtocolElements.UNSUBSCRIBEFROMVIDEO_SENDER_PARAM);
-    senderName = senderName.substring(0, senderName.indexOf("_"));
+    final String streamId = getStringParam(request, ProtocolElements.UNSUBSCRIBEFROMVIDEO_STREAMID_PARAM);
+    // senderName = senderName.substring(0, senderName.indexOf("_"));
 
-    roomManager.unsubscribe(senderName, participantRequest);
+    roomManager.unsubscribe(senderName, streamId, participantRequest);
   }
 
   public void leaveRoomAfterConnClosed(String sessionId) {
@@ -148,11 +152,12 @@ public class JsonRpcUserControl {
   public void onIceCandidate(Transaction transaction, Request<JsonObject> request,
       ParticipantRequest participantRequest) {
     String endpointName = getStringParam(request, ProtocolElements.ONICECANDIDATE_EPNAME_PARAM);
+    final String streamId = getStringParam(request, ProtocolElements.ONICECANDIDATE_STREAMID_PARAM);
     String candidate = getStringParam(request, ProtocolElements.ONICECANDIDATE_CANDIDATE_PARAM);
     String sdpMid = getStringParam(request, ProtocolElements.ONICECANDIDATE_SDPMIDPARAM);
     int sdpMLineIndex = getIntParam(request, ProtocolElements.ONICECANDIDATE_SDPMLINEINDEX_PARAM);
 
-    roomManager.onIceCandidate(endpointName, candidate, sdpMLineIndex, sdpMid, participantRequest);
+    roomManager.onIceCandidate(endpointName, streamId, candidate, sdpMLineIndex, sdpMid, participantRequest);
   }
 
   public void sendMessage(Transaction transaction, Request<JsonObject> request,

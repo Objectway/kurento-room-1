@@ -55,37 +55,36 @@ public class Participant {
   private boolean dataChannels = false;
 
   private final Room room;
-
   private final MediaPipeline pipeline;
 
-  private PublisherEndpoint publisher;
-  private CountDownLatch endPointLatch = new CountDownLatch(1);
+  // Publisher (streamId)
+  private final ConcurrentHashMap<String, PublisherEndpoint> publishers = new ConcurrentHashMap<String, PublisherEndpoint>();
+  private final ConcurrentHashMap<String, CountDownLatch> publisherLatches = new ConcurrentHashMap<String, CountDownLatch>();
 
+  // Warning: the mere presence of a stream in publishers does NOT mean that the stream is effectively published
+  // However, when the stream is unpublished, the entry is removed both from publishers and publishersStreamingFlags.
+  private final ConcurrentHashMap<String, Boolean> publishersStreamingFlags = new ConcurrentHashMap<String, Boolean>();
+
+  // Subscribers
   private final ConcurrentMap<String, SubscriberEndpoint> subscribers = new ConcurrentHashMap<String, SubscriberEndpoint>();
 
-  private volatile boolean streaming = false;
   private volatile boolean closed;
 
-  public Participant(String id, String name, Room room, MediaPipeline pipeline,
-      boolean dataChannels, boolean web) {
+  public Participant(String id, String name, Room room, MediaPipeline pipeline, boolean dataChannels, boolean web) {
     this.id = id;
     this.name = name;
     this.web = web;
     this.dataChannels = dataChannels;
     this.pipeline = pipeline;
     this.room = room;
-    this.publisher = new PublisherEndpoint(web, dataChannels, this, name, pipeline);
-
-    for (Participant other : room.getParticipants()) {
-      if (!other.getName().equals(this.name)) {
-        getNewOrExistingSubscriber(other.getName());
-      }
-    }
   }
 
-  public void createPublishingEndpoint() {
-    publisher.createEndpoint(endPointLatch);
-    if (getPublisher().getEndpoint() == null) {
+  public void createPublishingEndpoint(final String streamId) {
+    final PublisherEndpoint publisherEndpoint = getNewOrExistingPublisher(name, streamId);
+    final CountDownLatch publisherLatch = publisherLatches.get(streamId);
+    publisherEndpoint.createEndpoint(publisherLatch);
+
+    if (getPublisher(streamId).getEndpoint() == null) {
       throw new RoomException(Code.MEDIA_ENDPOINT_ERROR_CODE, "Unable to create publisher endpoint");
     }
   }
@@ -98,15 +97,20 @@ public class Participant {
     return name;
   }
 
-  public void shapePublisherMedia(MediaElement element, MediaType type) {
+  public void shapePublisherMedia(MediaElement element, MediaType type, final String streamId) {
+    if (!publishers.contains(streamId)) {
+      throw new RoomException(Code.MEDIA_ENDPOINT_ERROR_CODE, "Unable to create publisher endpoint, streamId " + streamId + " not found");
+    }
+    final PublisherEndpoint publisher = publishers.get(streamId);
     if (type == null) {
-      this.publisher.apply(element);
+      publisher.apply(element);
     } else {
-      this.publisher.apply(element, type);
+      publisher.apply(element, type);
     }
   }
 
-  public PublisherEndpoint getPublisher() {
+  public PublisherEndpoint getPublisher(final String streamId) {
+    final CountDownLatch endPointLatch = publisherLatches.get(streamId);
     try {
       if (!endPointLatch.await(Room.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS)) {
         throw new RoomException(Code.MEDIA_ENDPOINT_ERROR_CODE,
@@ -116,7 +120,7 @@ public class Participant {
       throw new RoomException(Code.MEDIA_ENDPOINT_ERROR_CODE,
           "Interrupted while waiting for publisher endpoint to be ready: " + e.getMessage());
     }
-    return this.publisher;
+    return publishers.get(streamId);
   }
 
   public Room getRoom() {
@@ -131,8 +135,17 @@ public class Participant {
     return closed;
   }
 
-  public boolean isStreaming() {
-    return streaming;
+  public boolean isStreaming(final String streamId) {
+    final Boolean streaming = publishersStreamingFlags.get(streamId);
+    return streaming != null && streaming.booleanValue() == true;
+  }
+
+  /**
+   * Returns TRUE if the participant is streaming at least one stream
+   * @return
+   */
+  public boolean isAnyStreaming() {
+    return this.publishersStreamingFlags.size() > 0;
   }
 
   public boolean isSubscribed() {
@@ -154,44 +167,47 @@ public class Participant {
     return subscribedToSet;
   }
 
-  public String preparePublishConnection() {
+  public String preparePublishConnection(final String streamId) {
     log.info("USER {}: Request to publish video in room {} by "
         + "initiating connection from server", this.name, this.room.getName());
 
-    String sdpOffer = this.getPublisher().preparePublishConnection();
+    String sdpOffer = this.getPublisher(streamId).preparePublishConnection();
 
-    log.trace("USER {}: Publishing SdpOffer is {}", this.name, sdpOffer);
-    log.info("USER {}: Generated Sdp offer for publishing in room {}", this.name,
-        this.room.getName());
+    log.trace("USER {}: Publishing SdpOffer is {} for streamId {}", this.name, sdpOffer, streamId);
+    log.info("USER {}: Generated Sdp offer for publishing in room {} for streamId {}", this.name,
+        this.room.getName(), streamId);
     return sdpOffer;
   }
 
-  public String publishToRoom(SdpType sdpType, String sdpString, boolean doLoopback,
+  public String publishToRoom(final String streamId, final String streamType, SdpType sdpType, String sdpString, boolean doLoopback,
       MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType) {
     log.info("USER {}: Request to publish video in room {} (sdp type {})", this.name,
         this.room.getName(), sdpType);
     log.trace("USER {}: Publishing Sdp ({}) is {}", this.name, sdpType, sdpString);
 
-    String sdpResponse = this.getPublisher().publish(sdpType, sdpString, doLoopback,
+    String sdpResponse = this.getPublisher(streamId).publish(sdpType, sdpString, doLoopback,
         loopbackAlternativeSrc, loopbackConnectionType);
-    this.streaming = true;
+
+    // The publisher is now streaming
+    publishersStreamingFlags.put(streamId, true);
 
     log.trace("USER {}: Publishing Sdp ({}) is {}", this.name, sdpType, sdpResponse);
-    log.info("USER {}: Is now publishing video in room {}", this.name, this.room.getName());
+    log.info("USER {}: Is now publishing video in room {} streamId {} streamType {}", this.name, this.room.getName(), streamId, streamType);
 
     return sdpResponse;
   }
 
-  public void unpublishMedia() {
+  public void unpublishMedia(final String streamId) {
     log.debug("PARTICIPANT {}: unpublishing media stream from room {}", this.name,
         this.room.getName());
-    releasePublisherEndpoint();
-    this.publisher = new PublisherEndpoint(web, dataChannels, this, name, pipeline);
+    releasePublisherEndpoint(streamId);
+
+    /*this.publisher = new PublisherEndpoint(web, dataChannels, this, name, pipeline);
     log.debug("PARTICIPANT {}: released publisher endpoint and left it "
-        + "initialized (ready for future streaming)", this.name);
+        + "initialized (ready for future streaming)", this.name);*/
   }
 
-  public String receiveMediaFrom(Participant sender, String sdpOffer) {
+  public String receiveMediaFrom(Participant sender, final String streamId, String sdpOffer) {
     final String senderName = sender.getName();
 
     log.info("USER {}: Request to receive media from {} in room {}", this.name, senderName,
@@ -204,7 +220,7 @@ public class Participant {
           "Can loopback only when publishing media");
     }
 
-    if (sender.getPublisher() == null) {
+    if (sender.getPublisher(streamId) == null) {
       log.warn("PARTICIPANT {}: Trying to connect to a user without " + "a publishing endpoint",
           this.name);
       return null;
@@ -212,7 +228,7 @@ public class Participant {
 
     log.debug("PARTICIPANT {}: Creating a subscriber endpoint to user {}", this.name, senderName);
 
-    SubscriberEndpoint subscriber = getNewOrExistingSubscriber(senderName);
+    SubscriberEndpoint subscriber = getNewOrExistingSubscriber(senderName, streamId);
 
     try {
       CountDownLatch subscriberLatch = new CountDownLatch(1);
@@ -240,12 +256,12 @@ public class Participant {
       throw e;
     }
 
-    log.debug("PARTICIPANT {}: Created subscriber endpoint for user {}", this.name, senderName);
+    log.debug("PARTICIPANT {}: Created subscriber endpoint for user {} with streamId {}", this.name, senderName, streamId);
     try {
-      String sdpAnswer = subscriber.subscribe(sdpOffer, sender.getPublisher());
-      log.trace("USER {}: Subscribing SdpAnswer is {}", this.name, sdpAnswer);
-      log.info("USER {}: Is now receiving video from {} in room {}", this.name, senderName,
-          this.room.getName());
+      String sdpAnswer = subscriber.subscribe(sdpOffer, sender.getPublisher(streamId));
+      log.trace("USER {}: Subscribing SdpAnswer is {} with streamId {}", this.name, sdpAnswer, streamId);
+      log.info("USER {}: Is now receiving video from {} in room {} with streamId {}", this.name, senderName,
+          this.room.getName(), streamId);
       return sdpAnswer;
     } catch (KurentoServerException e) {
       // TODO Check object status when KurentoClient sets this info in the
@@ -262,7 +278,14 @@ public class Participant {
     return null;
   }
 
-  public void cancelReceivingMedia(String senderName) {
+  public void cancelReceivingAllMedias(String senderName) {
+    for (String streamId : subscribers.keySet()) {
+      cancelReceivingMedia(senderName, streamId);
+    }
+  }
+
+  public void cancelReceivingMedia(String senderName, final String streamId) {
+    senderName = senderName + "_" + streamId;
     log.debug("PARTICIPANT {}: cancel receiving media from {}", this.name, senderName);
     SubscriberEndpoint subscriberEndpoint = subscribers.remove(senderName);
     if (subscriberEndpoint == null || subscriberEndpoint.getEndpoint() == null) {
@@ -276,27 +299,27 @@ public class Participant {
     }
   }
 
-  public void mutePublishedMedia(MutedMediaType muteType) {
+  public void mutePublishedMedia(MutedMediaType muteType, final String streamId) {
     if (muteType == null) {
       throw new RoomException(Code.MEDIA_MUTE_ERROR_CODE, "Mute type cannot be null");
     }
-    this.getPublisher().mute(muteType);
+    this.getPublisher(streamId).mute(muteType);
   }
 
-  public void unmutePublishedMedia() {
-    if (this.getPublisher().getMuteType() == null) {
+  public void unmutePublishedMedia(final String streamId) {
+    if (this.getPublisher(streamId).getMuteType() == null) {
       log.warn("PARTICIPANT {}: Trying to unmute published media. " + "But media is not muted.",
           this.name);
     } else {
-      this.getPublisher().unmute();
+      this.getPublisher(streamId).unmute();
     }
   }
 
-  public void muteSubscribedMedia(Participant sender, MutedMediaType muteType) {
+  public void muteSubscribedMedia(Participant sender, final String streamId, MutedMediaType muteType) {
     if (muteType == null) {
       throw new RoomException(Code.MEDIA_MUTE_ERROR_CODE, "Mute type cannot be null");
     }
-    String senderName = sender.getName();
+    String senderName = sender.getName() + "_" + streamId;
     SubscriberEndpoint subscriberEndpoint = subscribers.get(senderName);
     if (subscriberEndpoint == null || subscriberEndpoint.getEndpoint() == null) {
       log.warn("PARTICIPANT {}: Trying to mute incoming media from user {}. "
@@ -307,8 +330,8 @@ public class Participant {
     }
   }
 
-  public void unmuteSubscribedMedia(Participant sender) {
-    String senderName = sender.getName();
+  public void unmuteSubscribedMedia(Participant sender, final String streamId) {
+    String senderName = sender.getName() + "_" + streamId;
     SubscriberEndpoint subscriberEndpoint = subscribers.get(senderName);
     if (subscriberEndpoint == null || subscriberEndpoint.getEndpoint() == null) {
       log.warn("PARTICIPANT {}: Trying to unmute incoming media from user {}. "
@@ -343,7 +366,10 @@ public class Participant {
             + "But the endpoint was never instantiated.", this.name, remoteParticipantName);
       }
     }
-    releasePublisherEndpoint();
+
+    for (String streamId : publishers.keySet()) {
+      releasePublisherEndpoint(streamId);
+    }
   }
 
   /**
@@ -354,7 +380,8 @@ public class Participant {
    *          name of another user
    * @return the endpoint instance
    */
-  public SubscriberEndpoint getNewOrExistingSubscriber(String remoteName) {
+  public SubscriberEndpoint getNewOrExistingSubscriber(String remoteName, final String streamId) {
+    remoteName = remoteName + "_" + streamId;
     SubscriberEndpoint sendingEndpoint = new SubscriberEndpoint(web, this, remoteName, pipeline);
     SubscriberEndpoint existingSendingEndpoint = this.subscribers.putIfAbsent(remoteName,
         sendingEndpoint);
@@ -368,16 +395,44 @@ public class Participant {
     return sendingEndpoint;
   }
 
-  public void addIceCandidate(String endpointName, IceCandidate iceCandidate) {
-    if (this.name.equals(endpointName)) {
-      this.publisher.addIceCandidate(iceCandidate);
+  public PublisherEndpoint getNewOrExistingPublisher(final String endpointName, final String streamId) {
+
+    PublisherEndpoint publisherEndpoint = new PublisherEndpoint(web, dataChannels, this, endpointName + "_" + streamId, pipeline);
+    PublisherEndpoint existingPublisherEndpoint = publishers.putIfAbsent(streamId, publisherEndpoint);
+
+    if (existingPublisherEndpoint != null) {
+      publisherEndpoint = existingPublisherEndpoint;
+      log.trace("PARTICIPANT {}: Already exists a publish endpoint to user {} with streamId {}", this.name,
+              endpointName, streamId);
     } else {
-      this.getNewOrExistingSubscriber(endpointName).addIceCandidate(iceCandidate);
+      log.debug("PARTICIPANT {}: New publisher endpoint to user {} with streamId {}", this.name, endpointName, streamId);
+
+      // The publisher is not streaming yet (only when publishRoom is called)
+      publisherLatches.putIfAbsent(streamId, new CountDownLatch(1));
+      publishersStreamingFlags.putIfAbsent(streamId, false);
+
+      for (Participant other : room.getParticipants()) {
+        if (!other.getName().equals(this.name)) {
+          for (String otherStreamId : other.publishers.keySet()) {
+              getNewOrExistingSubscriber(other.getName(), otherStreamId);
+          }
+        }
+      }
+    }
+
+    return publisherEndpoint;
+  }
+
+  public void addIceCandidate(String endpointName, String streamId, IceCandidate iceCandidate) {
+    if (this.name.equals(endpointName)) {
+      this.getNewOrExistingPublisher(endpointName, streamId).addIceCandidate(iceCandidate);
+    } else {
+      this.getNewOrExistingSubscriber(endpointName, streamId).addIceCandidate(iceCandidate);
     }
   }
 
-  public void sendIceCandidate(String endpointName, IceCandidate candidate) {
-    room.sendIceCandidate(id, endpointName, candidate);
+  public void sendIceCandidate(String endpointName, final String streamId, IceCandidate candidate) {
+    room.sendIceCandidate(id, endpointName, streamId, candidate);
   }
 
   public void sendMediaError(ErrorEvent event) {
@@ -387,17 +442,20 @@ public class Participant {
     room.sendMediaError(id, desc);
   }
 
-  private void releasePublisherEndpoint() {
+  private void releasePublisherEndpoint(final String streamId) {
+    final PublisherEndpoint publisher = publishers.get(streamId);
     if (publisher != null && publisher.getEndpoint() != null) {
-      this.streaming = false;
       publisher.unregisterErrorListeners();
       for (MediaElement el : publisher.getMediaElements()) {
         releaseElement(name, el);
       }
       releaseElement(name, publisher.getEndpoint());
-      publisher = null;
+
+      publishers.remove(streamId);
+      publisherLatches.remove(streamId);
+      publishersStreamingFlags.remove(streamId);
     } else {
-      log.warn("PARTICIPANT {}: Trying to release publisher endpoint but is null", name);
+      log.warn("PARTICIPANT {}: Trying to release publisher endpoint but is null, streamId {}", name, streamId);
     }
   }
 
@@ -431,6 +489,10 @@ public class Participant {
       log.error("PARTICIPANT {}: Error calling release on elem #{} for {}", name, eid, senderName,
           e);
     }
+  }
+
+  public ConcurrentHashMap.KeySetView<String, PublisherEndpoint> getPublisherStreamIds() {
+    return publishers.keySet();
   }
 
   @Override

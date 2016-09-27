@@ -30,13 +30,6 @@
 		<url>http://www.kurento.org</url>
 	</organization>
 
-	<scm>
-		<url>${kurento-room.scm.url}</url>
-		<connection>scm:git:${kurento-room.scm.connection}</connection>
-		<developerConnection>scm:git:${kurento-room.scm.connection}</developerConnection>
-		<tag>develop</tag>
-	</scm>
-
 	<developers>
 		<developer>
 			<id>kurento.org</id>
@@ -54,16 +47,6 @@
 		<dependency>
 			<groupId>org.kurento</groupId>
 			<artifactId>kurento-room-sdk</artifactId>
-		</dependency>
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.mockito</groupId>
-			<artifactId>mockito-core</artifactId>
-			<scope>test</scope>
 		</dependency>
 	</dependencies>
 

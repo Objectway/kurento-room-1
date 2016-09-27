@@ -15,6 +15,13 @@
  */
 package org.kurento.room.internal;
 
+import org.kurento.client.*;
+import org.kurento.room.api.RoomHandler;
+import org.kurento.room.exception.RoomException;
+import org.kurento.room.exception.RoomException.Code;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,18 +29,6 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-
-import org.kurento.client.Continuation;
-import org.kurento.client.ErrorEvent;
-import org.kurento.client.EventListener;
-import org.kurento.client.IceCandidate;
-import org.kurento.client.KurentoClient;
-import org.kurento.client.MediaPipeline;
-import org.kurento.room.api.RoomHandler;
-import org.kurento.room.exception.RoomException;
-import org.kurento.room.exception.RoomException.Code;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * @author Ivan Gracia (izanmail@gmail.com)
@@ -58,7 +53,8 @@ public class Room {
 
   private volatile boolean closed = false;
 
-  private AtomicInteger activePublishers = new AtomicInteger(0);
+  // ParticipantId -> Number of times he's been registered
+  private ConcurrentHashMap<String, AtomicInteger> activePublishersRegisterCount = new ConcurrentHashMap<String, AtomicInteger>();
 
   private Object pipelineCreateLock = new Object();
   private Object pipelineReleaseLock = new Object();
@@ -106,34 +102,35 @@ public class Room {
 
     participants.put(participantId, new Participant(participantId, userName, this, getPipeline(),
         dataChannels, webParticipant));
+    activePublishersRegisterCount.put(participantId, new AtomicInteger(0));
 
     log.info("ROOM {}: Added participant {}", name, userName);
   }
 
-  public void newPublisher(Participant participant) {
-    registerPublisher();
+  public void newPublisher(Participant participant, final String streamId) {
+    registerPublisher(participant.getId());
 
     // pre-load endpoints to recv video from the new publisher
     for (Participant participant1 : participants.values()) {
       if (participant.equals(participant1)) {
         continue;
       }
-      participant1.getNewOrExistingSubscriber(participant.getName());
+      participant1.getNewOrExistingSubscriber(participant.getName(), streamId);
     }
 
     log.debug("ROOM {}: Virtually subscribed other participants {} to new publisher {}", name,
         participants.values(), participant.getName());
   }
 
-  public void cancelPublisher(Participant participant) {
-    deregisterPublisher();
+  public void cancelPublisher(Participant participant, final String streamId) {
+    deregisterPublisher(participant.getId());
 
     // cancel recv video from this publisher
     for (Participant subscriber : participants.values()) {
       if (participant.equals(subscriber)) {
         continue;
       }
-      subscriber.cancelReceivingMedia(participant.getName());
+      subscriber.cancelReceivingMedia(participant.getName(), streamId);
     }
 
     log.debug("ROOM {}: Unsubscribed other participants {} from the publisher {}", name,
@@ -151,8 +148,10 @@ public class Room {
           + " not found in room '" + name + "'");
     }
     log.info("PARTICIPANT {}: Leaving room {}", participant.getName(), this.name);
-    if (participant.isStreaming()) {
-      this.deregisterPublisher();
+    for (String streamId : participant.getPublisherStreamIds()) {
+      if (participant.isStreaming(streamId)) {
+        this.deregisterPublisher(participant.getId());
+      }
     }
     this.removeParticipant(participant);
     participant.close();
@@ -200,6 +199,7 @@ public class Room {
       }
 
       participants.clear();
+      activePublishersRegisterCount.clear();
 
       closePipeline();
 
@@ -215,8 +215,8 @@ public class Room {
     }
   }
 
-  public void sendIceCandidate(String participantId, String endpointName, IceCandidate candidate) {
-    this.roomHandler.onIceCandidate(name, participantId, endpointName, candidate);
+  public void sendIceCandidate(String participantId, String endpointName, final String streamId, IceCandidate candidate) {
+    this.roomHandler.onIceCandidate(name, participantId, endpointName, streamId, candidate);
   }
 
   public void sendMediaError(String participantId, String description) {
@@ -238,24 +238,36 @@ public class Room {
     checkClosed();
 
     participants.remove(participant.getId());
-
+    activePublishersRegisterCount.remove(participant.getId());
     log.debug("ROOM {}: Cancel receiving media from user '{}' for other users", this.name,
         participant.getName());
     for (Participant other : participants.values()) {
-      other.cancelReceivingMedia(participant.getName());
+      other.cancelReceivingAllMedias(participant.getName());
     }
   }
 
   public int getActivePublishers() {
-    return activePublishers.get();
+    int result = 0;
+
+    // For each participant
+    for (String participantId : activePublishersRegisterCount.keySet()) {
+      // If it has been registered at least once
+      // WARNING: This is DIFFERENT from checking for the ACTUAL number of streams in the corresponding participant!
+      if (activePublishersRegisterCount.get(participantId).get() > 0) {
+        // then he is active
+        result++;
+      }
+    }
+
+    return result;
   }
 
-  public void registerPublisher() {
-    this.activePublishers.incrementAndGet();
+  public void registerPublisher(final String participantId) {
+    this.activePublishersRegisterCount.get(participantId).incrementAndGet();
   }
 
-  public void deregisterPublisher() {
-    this.activePublishers.decrementAndGet();
+  public void deregisterPublisher(final String participantId) {
+    this.activePublishersRegisterCount.get(participantId).decrementAndGet();
   }
 
   private void createPipeline() {

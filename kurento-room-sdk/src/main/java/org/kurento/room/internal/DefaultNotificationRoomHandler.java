@@ -98,11 +98,14 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
     }
 
     notifService.sendResponse(request, new JsonObject());
-    notifService.closeSession(request);
+
+    // Don't close the websocket session of the participant that has left the room
+    // (he could rejoin later)
+    // notifService.closeSession(request);
   }
 
   @Override
-  public void onPublishMedia(ParticipantRequest request, String publisherName, String sdpAnswer,
+  public void onPublishMedia(ParticipantRequest request, String publisherName, final String streamId, final String streamType, String sdpAnswer,
       Set<UserParticipant> participants, RoomException error) {
     if (error != null) {
       notifService.sendErrorResponse(request, null, error);
@@ -115,7 +118,8 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
     JsonObject params = new JsonObject();
     params.addProperty(ProtocolElements.PARTICIPANTPUBLISHED_USER_PARAM, publisherName);
     JsonObject stream = new JsonObject();
-    stream.addProperty(ProtocolElements.PARTICIPANTPUBLISHED_STREAMID_PARAM, "webcam");
+    stream.addProperty(ProtocolElements.PARTICIPANTPUBLISHED_STREAMID_PARAM, streamId);
+    stream.addProperty(ProtocolElements.PARTICIPANTPUBLISHED_STREAMTYPE_PARAM, streamType);
     JsonArray streamsArray = new JsonArray();
     streamsArray.add(stream);
     params.add(ProtocolElements.PARTICIPANTPUBLISHED_STREAMS_PARAM, streamsArray);
@@ -131,7 +135,7 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
   }
 
   @Override
-  public void onUnpublishMedia(ParticipantRequest request, String publisherName,
+  public void onUnpublishMedia(ParticipantRequest request, String publisherName, final String streamId,
       Set<UserParticipant> participants, RoomException error) {
     if (error != null) {
       notifService.sendErrorResponse(request, null, error);
@@ -141,6 +145,7 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
 
     JsonObject params = new JsonObject();
     params.addProperty(ProtocolElements.PARTICIPANTUNPUBLISHED_NAME_PARAM, publisherName);
+    params.addProperty(ProtocolElements.PARTICIPANTUNPUBLISHED_STREAMID_PARAM, streamId);
 
     for (UserParticipant participant : participants) {
       if (participant.getParticipantId().equals(request.getParticipantId())) {
@@ -221,10 +226,11 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
   // ------------ EVENTS FROM ROOM HANDLER -----
 
   @Override
-  public void onIceCandidate(String roomName, String participantId, String endpointName,
+  public void onIceCandidate(String roomName, String participantId, String endpointName, final String streamId,
       IceCandidate candidate) {
     JsonObject params = new JsonObject();
     params.addProperty(ProtocolElements.ICECANDIDATE_EPNAME_PARAM, endpointName);
+    params.addProperty(ProtocolElements.ICECANDIDATE_STREAMID_PARAM, streamId);
     params.addProperty(ProtocolElements.ICECANDIDATE_SDPMLINEINDEX_PARAM,
         candidate.getSdpMLineIndex());
     params.addProperty(ProtocolElements.ICECANDIDATE_SDPMID_PARAM, candidate.getSdpMid());

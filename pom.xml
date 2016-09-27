@@ -71,9 +71,10 @@
 				<module>kurento-room-server</module>
 				<module>kurento-room-client</module>
 				<module>kurento-room-client-js</module>
+				<!--
 				<module>kurento-room-test</module>
 				<module>kurento-room-demo</module>
-				<module>kurento-room-basicapp</module>
+				<module>kurento-room-basicapp</module> -->
 			</modules>
 		</profile>
 		<profile>

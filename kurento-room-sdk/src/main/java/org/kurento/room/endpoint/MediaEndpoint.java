@@ -418,7 +418,7 @@ public abstract class MediaEndpoint {
     webEndpoint.addOnIceCandidateListener(new EventListener<OnIceCandidateEvent>() {
       @Override
       public void onEvent(OnIceCandidateEvent event) {
-        owner.sendIceCandidate(endpointName, event.getCandidate());
+        owner.sendIceCandidate(endpointName.substring(0, endpointName.lastIndexOf('_')), endpointName.substring(endpointName.lastIndexOf('_') + 1), event.getCandidate());
       }
     });
   }
