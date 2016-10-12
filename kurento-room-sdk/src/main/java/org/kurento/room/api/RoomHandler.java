@@ -16,9 +16,11 @@
 
 package org.kurento.room.api;
 
+import java.util.Collection;
 import java.util.Set;
 
 import org.kurento.client.IceCandidate;
+import org.kurento.room.internal.Participant;
 
 /**
  * Handler for events triggered from media objects.
@@ -36,12 +38,14 @@ public interface RoomHandler {
    *          name of the room
    * @param participantId
    *          identifier of the participant
+   * @param participantName
+   *          name of the participant
    * @param endpoint
    *          String the identifier of the local WebRTC endpoint (created in the server)
    * @param candidate
    *          the gathered {@link IceCandidate}
    */
-  void onIceCandidate(String roomName, String participantId, String endpoint, final String streamId, IceCandidate candidate);
+  void onIceCandidate(String roomName, String participantId, String participantName, String endpoint, final String streamId, IceCandidate candidate);
 
   /**
    * Called as a result of an error intercepted on a media element of a participant. The participant
@@ -51,10 +55,12 @@ public interface RoomHandler {
    *          name of the room
    * @param participantId
    *          identifier of the participant
-   * @param description
+   * @param participantName
+   *          name of the participant
+   * @param errorDescription
    *          description of the error
    */
-  void onMediaElementError(String roomName, String participantId, String errorDescription);
+  void onMediaElementError(String roomName, String participantId, String participantName, String errorDescription);
 
   /**
    * Called as a result of an error intercepted on the media pipeline. The affected participants
@@ -62,10 +68,10 @@ public interface RoomHandler {
    *
    * @param roomName
    *          the room where the error occurred
-   * @param participantIds
-   *          the participants identifiers
-   * @param description
+   * @param participants
+   *          the participants
+   * @param errorDescription
    *          description of the error
    */
-  void onPipelineError(String roomName, Set<String> participantIds, String errorDescription);
+  void onPipelineError(String roomName, Collection<Participant> participants, String errorDescription);
 }

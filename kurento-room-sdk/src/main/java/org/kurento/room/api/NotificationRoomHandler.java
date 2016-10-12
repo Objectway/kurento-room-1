@@ -181,16 +181,12 @@ public interface NotificationRoomHandler extends RoomHandler {
    *          name of the peer that sent it
    * @param roomName
    *          the current room name
-   * @param participants
-   *          instances of {@link UserParticipant} for ALL the participants in the room (includes
-   *          the sender)
    * @param error
    *          instance of {@link RoomException} POJO, includes a code and error message. If not
    *          null, then the operation was unsuccessful and the user should be responded
    *          accordingly.
    */
-  void onSendMessage(ParticipantRequest request, String message, String userName, String roomName,
-      Set<UserParticipant> participants, RoomException error);
+  void onSendMessage(ParticipantRequest request, String message, String userName, String roomName, RoomException error);
 
   /**
    * Called as a result of

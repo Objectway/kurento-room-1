@@ -119,6 +119,7 @@ public class JsonRpcNotificationService implements UserNotificationService {
     }
   }
 
+  /*
   @Override
   public void sendNotification(final String participantId, final String method, final Object params) {
     SessionWrapper sw = sessions.get(participantId);
@@ -135,7 +136,7 @@ public class JsonRpcNotificationService implements UserNotificationService {
       log.error("Exception sending notification '{}': {} to user id {}", method, params,
           participantId, e);
     }
-  }
+  }*/
 
   @Override
   public void closeSession(ParticipantRequest participantRequest) {

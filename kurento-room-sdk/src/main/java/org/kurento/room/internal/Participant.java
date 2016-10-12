@@ -432,14 +432,14 @@ public class Participant {
   }
 
   public void sendIceCandidate(String endpointName, final String streamId, IceCandidate candidate) {
-    room.sendIceCandidate(id, endpointName, streamId, candidate);
+    room.sendIceCandidate(id, name, endpointName, streamId, candidate);
   }
 
   public void sendMediaError(ErrorEvent event) {
     String desc = event.getType() + ": " + event.getDescription() + "(errCode="
         + event.getErrorCode() + ")";
     log.warn("PARTICIPANT {}: Media error encountered: {}", name, desc);
-    room.sendMediaError(id, desc);
+    room.sendMediaError(id, name, desc);
   }
 
   private void releasePublisherEndpoint(final String streamId) {

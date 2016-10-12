@@ -286,8 +286,8 @@ public class NotificationRoomManager {
    * @param request
    *          instance of {@link ParticipantRequest} POJO
    */
-  public void sendMessage(String message, String userName, String roomName,
-      ParticipantRequest request) {
+  public void sendMessage(String message, String userName, String roomName, ParticipantRequest request) {
+    /*
     log.debug("Request [SEND_MESSAGE] message={} ({})", message, request);
     try {
       if (!internalManager.getParticipantName(request.getParticipantId()).equals(userName)) {
@@ -303,6 +303,13 @@ public class NotificationRoomManager {
     } catch (RoomException e) {
       log.warn("PARTICIPANT {}: Error sending message", userName, e);
       notificationRoomHandler.onSendMessage(request, null, null, null, null, e);
+    }*/
+
+    try {
+      notificationRoomHandler.onSendMessage(request, message, userName, roomName, null);
+    } catch (RoomException e) {
+      log.warn("PARTICIPANT {}: Error sending message", userName, e);
+      notificationRoomHandler.onSendMessage(request, null, null, null, e);
     }
   }
 

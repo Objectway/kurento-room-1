@@ -215,12 +215,12 @@ public class Room {
     }
   }
 
-  public void sendIceCandidate(String participantId, String endpointName, final String streamId, IceCandidate candidate) {
-    this.roomHandler.onIceCandidate(name, participantId, endpointName, streamId, candidate);
+  public void sendIceCandidate(String participantId, String participantName, String endpointName, final String streamId, IceCandidate candidate) {
+    this.roomHandler.onIceCandidate(name, participantId, participantName, endpointName, streamId, candidate);
   }
 
-  public void sendMediaError(String participantId, String description) {
-    this.roomHandler.onMediaElementError(name, participantId, description);
+  public void sendMediaError(String participantId, String participantName, String description) {
+    this.roomHandler.onMediaElementError(name, participantId, participantName, description);
   }
 
   public boolean isClosed() {
@@ -306,7 +306,7 @@ public class Room {
           String desc = event.getType() + ": " + event.getDescription() + "(errCode="
               + event.getErrorCode() + ")";
           log.warn("ROOM {}: Pipeline error encountered: {}", name, desc);
-          roomHandler.onPipelineError(name, getParticipantIds(), desc);
+          roomHandler.onPipelineError(name, getParticipants(), desc);
         }
       });
     }

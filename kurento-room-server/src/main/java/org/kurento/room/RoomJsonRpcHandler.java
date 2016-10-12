@@ -44,8 +44,10 @@ public class RoomJsonRpcHandler extends DefaultJsonRpcHandler<JsonObject> {
 
   private static final String HANDLER_THREAD_NAME = "handler";
 
-  private JsonRpcUserControl userControl;
+  @Autowired
+  private UsernameSessionIdMapper usernameSessionIdMapper;
 
+  private JsonRpcUserControl userControl;
   private JsonRpcNotificationService notificationService;
 
   @Autowired
@@ -121,16 +123,28 @@ public class RoomJsonRpcHandler extends DefaultJsonRpcHandler<JsonObject> {
 
   @Override
   public final void afterConnectionClosed(Session session, String status) throws Exception {
-    ParticipantSession ps = null;
-    if (session.getAttributes().containsKey(ParticipantSession.SESSION_KEY)) {
-      ps = (ParticipantSession) session.getAttributes().get(ParticipantSession.SESSION_KEY);
+    try {
+      ParticipantSession ps = null;
+      if (session.getAttributes().containsKey(ParticipantSession.SESSION_KEY)) {
+        ps = (ParticipantSession) session.getAttributes().get(ParticipantSession.SESSION_KEY);
+      }
+      String sid = session.getSessionId();
+      log.debug("CONN_CLOSED: sessionId={}, participant in session: {}", sid, ps);
+      ParticipantRequest preq = new ParticipantRequest(sid, null);
+      updateThreadName(sid + "|wsclosed");
+
+      // We need to distinguish between a proper leaveRoom request and a loss of connection
+      userControl.leaveRoom(null, null, preq);
+      userControl.onConnectionClosed(session);
+
+      updateThreadName(HANDLER_THREAD_NAME);
+    } finally {
+      // Remove the sessionId from the map
+      // NOTE: It is important that this operation is carried out after invoking onConnectionClosed,
+      // because its implementation needs to retrieve the username associated to the
+      // closing connection.
+      usernameSessionIdMapper.removeBySessionId(session.getSessionId());
     }
-    String sid = session.getSessionId();
-    log.debug("CONN_CLOSED: sessionId={}, participant in session: {}", sid, ps);
-    ParticipantRequest preq = new ParticipantRequest(sid, null);
-    updateThreadName(sid + "|wsclosed");
-    userControl.leaveRoom(null, null, preq);
-    updateThreadName(HANDLER_THREAD_NAME);
   }
 
   @Override
