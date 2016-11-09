@@ -22,13 +22,7 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.CountDownLatch;
 
-import org.kurento.client.Continuation;
-import org.kurento.client.ListenerSubscription;
-import org.kurento.client.MediaElement;
-import org.kurento.client.MediaPipeline;
-import org.kurento.client.MediaType;
-import org.kurento.client.PassThrough;
-import org.kurento.client.WebRtcEndpoint;
+import org.kurento.client.*;
 import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.exception.RoomException.Code;
@@ -53,9 +47,50 @@ public class PublisherEndpoint extends MediaEndpoint {
 
   private Map<String, ListenerSubscription> elementsErrorSubscriptions = new HashMap<String, ListenerSubscription>();
 
+  // An (optional) recorder endpoint
+  private RecorderEndpoint recorderEndpoint = null;
+  private Long callStreamId = null;
+
   public PublisherEndpoint(boolean web, boolean dataChannels, Participant owner,
       String endpointName, MediaPipeline pipeline) {
     super(web, dataChannels, owner, endpointName, pipeline, log);
+  }
+
+  /**
+   * Starts recording the stream
+   * @param fileName
+   * @param mediaSpecType
+   */
+  public void startRecording(final String fileName, final MediaProfileSpecType mediaSpecType, final Long callStreamId) {
+    if (recorderEndpoint == null) {
+      // Add the endpoint to the pipeline
+      this.callStreamId = callStreamId;
+
+      recorderEndpoint = new RecorderEndpoint.Builder(getPipeline(), fileName).withMediaProfile(mediaSpecType).build();
+      connect(recorderEndpoint);
+
+      // Start the recording
+      recorderEndpoint.record();
+    }
+  }
+
+  /**
+   * Stops the stream recording
+   */
+  public void stopRecording() {
+    if (recorderEndpoint != null) {
+      recorderEndpoint.stop();
+
+      // Remove the node from the pipeline
+      disconnectFrom(recorderEndpoint);
+
+      recorderEndpoint = null;
+      callStreamId = null;
+    }
+  }
+
+  public Long getCallStreamId() {
+    return callStreamId;
   }
 
   @Override
