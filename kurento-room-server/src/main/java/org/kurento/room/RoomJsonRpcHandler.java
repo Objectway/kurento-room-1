@@ -121,16 +121,24 @@ public class RoomJsonRpcHandler extends DefaultJsonRpcHandler<JsonObject> {
 
   @Override
   public final void afterConnectionClosed(Session session, String status) throws Exception {
-    ParticipantSession ps = null;
-    if (session.getAttributes().containsKey(ParticipantSession.SESSION_KEY)) {
-      ps = (ParticipantSession) session.getAttributes().get(ParticipantSession.SESSION_KEY);
+    ParticipantRequest preq = null;
+
+    try {
+      ParticipantSession ps = null;
+      if (session.getAttributes().containsKey(ParticipantSession.SESSION_KEY)) {
+        ps = (ParticipantSession) session.getAttributes().get(ParticipantSession.SESSION_KEY);
+      }
+      String sid = session.getSessionId();
+      log.debug("CONN_CLOSED: sessionId={}, participant in session: {}", sid, ps);
+      preq = new ParticipantRequest(sid, null);
+      updateThreadName(sid + "|wsclosed");
+      userControl.leaveRoom(null, null, preq);
+      updateThreadName(HANDLER_THREAD_NAME);
+    } finally {
+      // Close the websocket session of the participant
+      // (this is no longer done by CustomNotificationRoomHandler.onParticipantLeft()!)
+      notificationService.closeSession(preq);
     }
-    String sid = session.getSessionId();
-    log.debug("CONN_CLOSED: sessionId={}, participant in session: {}", sid, ps);
-    ParticipantRequest preq = new ParticipantRequest(sid, null);
-    updateThreadName(sid + "|wsclosed");
-    userControl.leaveRoom(null, null, preq);
-    updateThreadName(HANDLER_THREAD_NAME);
   }
 
   @Override

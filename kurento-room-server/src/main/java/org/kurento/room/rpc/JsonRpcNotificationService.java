@@ -44,6 +44,7 @@ public class JsonRpcNotificationService implements UserNotificationService {
   public SessionWrapper addTransaction(Transaction t, Request<JsonObject> request) {
     String sessionId = t.getSession().getSessionId();
     SessionWrapper sw = sessions.get(sessionId);
+    log.info("Sessions size = {}", sessions.size());
     if (sw == null) {
       sw = new SessionWrapper(t.getSession());
       SessionWrapper oldSw = sessions.putIfAbsent(sessionId, sw);
