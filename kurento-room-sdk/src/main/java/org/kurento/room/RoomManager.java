@@ -59,6 +59,8 @@ public class RoomManager {
   private final Logger log = LoggerFactory.getLogger(RoomManager.class);
 
   private RoomHandler roomHandler;
+
+  // Note: This can be null if we don't want to use a KMS!
   private KurentoClientProvider kcProvider;
 
   private final ConcurrentMap<String, Room> rooms = new ConcurrentHashMap<String, Room>();
@@ -212,6 +214,11 @@ public class RoomManager {
   public String publishMedia(String participantId, final String streamId, final String streamType, boolean isOffer, String sdp,
       MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType, boolean doLoopback,
       MediaElement... mediaElements) throws RoomException {
+    // We can't publish anything without a KMS provider!
+    if (kcProvider == null) {
+      throw new RoomException(Code.MEDIA_GENERIC_ERROR_CODE, "Cannot publish media without a KMS provider!");
+    }
+
     log.debug("Request [PUBLISH_MEDIA] isOffer={} sdp={} "
         + "loopbackAltSrc={} lpbkConnType={} doLoopback={} mediaElements={} ({})", isOffer, sdp,
         loopbackAlternativeSrc == null, loopbackConnectionType, doLoopback, mediaElements,
@@ -829,9 +836,10 @@ public class RoomManager {
       throw new RoomException(Code.ROOM_CANNOT_BE_CREATED_ERROR_CODE, "Room '" + roomName
           + "' already exists");
     }
-    KurentoClient kurentoClient = kcProvider.getKurentoClient(kcSessionInfo);
 
-    room = new Room(roomName, kurentoClient, roomHandler, kcProvider.destroyWhenUnused());
+    // We may not have a kcProvider object!
+    KurentoClient kurentoClient = kcProvider != null ? kcProvider.getKurentoClient(kcSessionInfo) : null;
+    room = new Room(roomName, kurentoClient, roomHandler, kcProvider != null ? kcProvider.destroyWhenUnused() : true);
 
     Room oldRoom = rooms.putIfAbsent(roomName, room);
     if (oldRoom != null) {
@@ -844,7 +852,7 @@ public class RoomManager {
       // + "' already exists (has just been created by another thread)");
     }
     String kcName = "[NAME NOT AVAILABLE]";
-    if (kurentoClient.getServerManager() != null) {
+    if (kurentoClient != null && kurentoClient.getServerManager() != null) {
       kcName = kurentoClient.getServerManager().getName();
     }
     log.warn("No room '{}' exists yet. Created one " + "using KurentoClient '{}'.", roomName,
