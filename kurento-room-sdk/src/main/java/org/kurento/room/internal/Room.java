@@ -47,6 +47,7 @@ public class Room {
   private MediaPipeline pipeline;
   private CountDownLatch pipelineLatch = new CountDownLatch(1);
 
+  // kurentoClient may be null if we do not want to use a KMS!
   private KurentoClient kurentoClient;
 
   private RoomHandler roomHandler;
@@ -75,6 +76,12 @@ public class Room {
   }
 
   public MediaPipeline getPipeline() {
+    // The pipeline creation process is not triggered when we do not have
+    // a KMS provider, so if we wait on pipelineLatch we would loop indefinitely
+    if (kurentoClient == null) {
+      return null;
+    }
+
     try {
       pipelineLatch.await(Room.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS);
     } catch (InterruptedException e) {
@@ -98,7 +105,10 @@ public class Room {
       }
     }
 
-    createPipeline();
+    // We create a pipeline only if we have a KMS provider!
+    if (kurentoClient != null) {
+      createPipeline();
+    }
 
     participants.put(participantId, new Participant(participantId, userName, this, getPipeline(),
         dataChannels, webParticipant));
@@ -201,11 +211,14 @@ public class Room {
       participants.clear();
       activePublishersRegisterCount.clear();
 
-      closePipeline();
+      // The pipeline is created only when we have a suitable KMS provider!
+      if (kurentoClient != null) {
+        closePipeline();
+      }
 
       log.debug("Room {} closed", this.name);
 
-      if (destroyKurentoClient) {
+      if (destroyKurentoClient && kurentoClient != null) {
         kurentoClient.destroy();
       }
 
@@ -277,6 +290,10 @@ public class Room {
       }
       log.info("ROOM {}: Creating MediaPipeline", name);
       try {
+        // This method must not be called when we do not have a KMS provider!
+        if (kurentoClient == null) {
+          throw new Exception("Cannot create a media pipeline without a KMS!");
+        }
         kurentoClient.createMediaPipeline(new Continuation<MediaPipeline>() {
           @Override
           public void onSuccess(MediaPipeline result) throws Exception {
