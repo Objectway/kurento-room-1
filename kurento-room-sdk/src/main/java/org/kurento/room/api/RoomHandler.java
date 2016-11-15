@@ -74,4 +74,23 @@ public interface RoomHandler {
    *          description of the error
    */
   void onPipelineError(String roomName, Collection<Participant> participants, String errorDescription);
+
+    /**
+     * Called when a new participant joins the conference and there are filters configured
+     *
+     * @param roomName
+     * @param participant
+     * @param filterId
+     * @param state
+     */
+    void updateFilter(String roomName, Participant participant, String filterId, String state);
+
+    /**
+     * Called to get the next state of a filter when requested by a call to updateFilter
+     *
+     * @param filterId The filter ID
+     * @param state    The current state of the filter
+     * @return Then new state of the filter
+     */
+    String getNextFilterState(String filterId, String state);
 }

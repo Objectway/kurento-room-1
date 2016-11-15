@@ -9,10 +9,11 @@ kurento_room.controller('callController', function ($scope, $window, ServicePart
     $scope.userName = ServiceRoom.getUserName();
     $scope.participants = ServiceParticipant.getParticipants();
     $scope.kurento = ServiceRoom.getKurento();
+    $scope.filter = ServiceRoom.getFilterRequestParam();
 
     $scope.leaveRoom = function () {
 
-        ServiceRoom.getKurento().close();
+        ServiceRoom.closeKurento();
 
         ServiceParticipant.removeParticipants();
 
@@ -21,12 +22,19 @@ kurento_room.controller('callController', function ($scope, $window, ServicePart
     };
 
     window.onbeforeunload = function () {
-    	//not necessary if not connected
-    	if (ServiceParticipant.isConnected()) {
-    		ServiceRoom.getKurento().close();
-    	}
+        //not necessary if not connected
+        if (ServiceParticipant.isConnected()) {
+            ServiceRoom.closeKurento();
+        }
     };
 
+    $scope.$on("$locationChangeStart", function () {
+        console.log("Changed location to: " + document.location);
+        if (ServiceParticipant.isConnected()) {
+            ServiceRoom.closeKurento();
+            ServiceParticipant.removeParticipants();
+        }
+    });
 
     $scope.goFullscreen = function () {
 
@@ -36,10 +44,10 @@ kurento_room.controller('callController', function ($scope, $window, ServicePart
             Fullscreen.all();
 
     };
-    
+
     $scope.disableMainSpeaker = function (value) {
 
-    	var element = document.getElementById("buttonMainSpeaker");
+        var element = document.getElementById("buttonMainSpeaker");
         if (element.classList.contains("md-person")) { //on
             element.classList.remove("md-person");
             element.classList.add("md-recent-actors");
@@ -80,18 +88,18 @@ kurento_room.controller('callController', function ($scope, $window, ServicePart
         }
     };
 
-    $scope.disconnectStream = function() {
-    	var localStream = ServiceRoom.getLocalStream();
-    	var participant = ServiceParticipant.getMainParticipant();
-    	if (!localStream || !participant) {
-    		LxNotificationService.alert('Error!', "Not connected yet", 'Ok', function(answer) {
+    $scope.disconnectStream = function () {
+        var localStream = ServiceRoom.getLocalStream();
+        var participant = ServiceParticipant.getMainParticipant();
+        if (!localStream || !participant) {
+            LxNotificationService.alert('Error!', "Not connected yet", 'Ok', function (answer) {
             });
-    		return false;
-    	}
-    	ServiceParticipant.disconnectParticipant(participant);
-    	ServiceRoom.getKurento().disconnectParticipant(participant.getStream());
+            return false;
+        }
+        ServiceParticipant.disconnectParticipant(participant);
+        ServiceRoom.getKurento().disconnectParticipant(participant.getStream());
     }
-    
+
     //chat
     $scope.message;
 
@@ -115,41 +123,72 @@ kurento_room.controller('callController', function ($scope, $window, ServicePart
         // run the effect
         $("#effect").toggle(selectedEffect, options, 500);
     };
-    
-    $scope.showHat = function () {
-    	var targetHat = false;
-    	var offImgStyle = "md-mood";
-    	var offColorStyle = "btn--deep-purple";
-    	var onImgStyle = "md-face-unlock";
-    	var onColorStyle = "btn--purple";
-    	var element = document.getElementById("hatButton");
-        if (element.classList.contains(offImgStyle)) { //off
-            element.classList.remove(offImgStyle);
-            element.classList.remove(offColorStyle);
-            element.classList.add(onImgStyle);
-            element.classList.add(onColorStyle);
-            targetHat = true;
-        } else if (element.classList.contains(onImgStyle)) { //on
-            element.classList.remove(onImgStyle);
-            element.classList.remove(onColorStyle);
-            element.classList.add(offImgStyle);
-            element.classList.add(offColorStyle);
-            targetHat = false;
+
+    var style = {
+        hat: {
+            "-1": "btn--indigo md-mood",
+            "0": "btn--amber md-face-unlock"
+        },
+        marker: {
+            "-1": "btn--indigo md-grid-off",
+            "0": "btn--amber md-grid-on",
+            "1": "btn--red md-grid-on"
         }
-    	
-        var hatTo = targetHat ? "on" : "off";
-    	console.log("Toggle hat to " + hatTo);
-    	ServiceRoom.getKurento().sendCustomRequest({hat: targetHat}, function (error, response) {
-    		if (error) {
-                console.error("Unable to toggle hat " + hatTo, error);
-                LxNotificationService.alert('Error!', "Unable to toggle hat " + hatTo, 
-                		'Ok', function(answer) {});
-        		return false;
-            } else {
-            	console.debug("Response on hat toggle", response);
-            }
-    	});
     };
+
+    $scope.filterIndex = "-1"; //off
+    $scope.filterState;
+    $scope.filterStyle;
+    updateFilterValues();
+
+    function updateFilterValues() {
+        $scope.filterState = parseInt($scope.filterIndex) < 0 ? "off" : "on";
+        $scope.filterStyle = style[$scope.filter][$scope.filterIndex];
+    }
+
+    $scope.applyFilter = function () {
+        var reqParams = {};
+        if ($scope.filter === "marker") {
+            reqParams[$scope.filter] = parseInt($scope.filterIndex);
+        } else {
+            if (parseInt($scope.filterIndex) < 0) { //off -> on
+                $scope.filterIndex = "0";
+                reqParams[$scope.filter] = true;
+            } else { //on -> off
+                $scope.filterIndex = "-1";
+                reqParams[$scope.filter] = false;
+            }
+        }
+
+        ServiceRoom.getKurento().sendCustomRequest(reqParams, function (error, response) {
+            if (error) {
+                console.error("Unable to toggle filter, currently " +
+                    $scope.filterState, error);
+                LxNotificationService.alert('Error!',
+                    "Unable to toggle filter, currently " + $scope.filterState,
+                    'Ok', function (answer) {
+                    });
+                return false;
+            } else {
+                if ($scope.filter === "marker") {
+                    return;
+                }
+
+                updateFilterValues();
+                console.log("Toggled filter " + $scope.filterState + " (idx " +
+                    $scope.filterIndex + ")");
+            }
+        });
+    };
+
+    ServiceParticipant.addEventListener("marker-filter-status-changed", function (status) {
+        console.log("Filter status changed", status);
+        if ($scope.filter === "marker") {
+            $scope.filterIndex = status;
+            updateFilterValues();
+            $scope.$apply();
+        }
+    });
 });
 
 

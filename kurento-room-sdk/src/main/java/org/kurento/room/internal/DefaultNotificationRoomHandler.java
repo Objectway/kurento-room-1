@@ -257,4 +257,14 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
     notifParams.addProperty(ProtocolElements.MEDIAERROR_ERROR_PARAM, description);
 //    notifService.sendNotification(participantId, ProtocolElements.MEDIAERROR_METHOD, notifParams);
   }
+
+  @Override
+  public void updateFilter(String roomName, Participant participant, String filterId,
+      String state) {
+  }
+
+  @Override
+  public String getNextFilterState(String filterId, String state) {
+    return null;
+  }
 }

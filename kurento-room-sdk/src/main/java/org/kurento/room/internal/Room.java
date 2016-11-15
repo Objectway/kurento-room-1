@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.kurento.room.internal;
 
 import org.kurento.client.*;
@@ -41,7 +42,8 @@ public class Room {
 
   private final static Logger log = LoggerFactory.getLogger(Room.class);
 
-  private final ConcurrentMap<String, Participant> participants = new ConcurrentHashMap<String, Participant>();
+  private final ConcurrentMap<String, Participant> participants =
+      new ConcurrentHashMap<String, Participant>();
   private final String name;
 
   private MediaPipeline pipeline;
@@ -61,6 +63,8 @@ public class Room {
   private Object pipelineReleaseLock = new Object();
   private volatile boolean pipelineReleased = false;
   private boolean destroyKurentoClient;
+
+  private final ConcurrentHashMap<String, String> filterStates = new ConcurrentHashMap<>();
 
   public Room(String roomName, KurentoClient kurentoClient, RoomHandler roomHandler,
       boolean destroyKurentoClient) {
@@ -90,7 +94,7 @@ public class Room {
     return this.pipeline;
   }
 
-  public void join(String participantId, String userName, boolean dataChannels,
+  public synchronized void join(String participantId, String userName, boolean dataChannels,
       boolean webParticipant) throws RoomException {
 
     checkClosed();
@@ -100,8 +104,8 @@ public class Room {
     }
     for (Participant p : participants.values()) {
       if (p.getName().equals(userName)) {
-        throw new RoomException(Code.EXISTING_USER_IN_ROOM_ERROR_CODE, "User '" + userName
-            + "' already exists in room '" + name + "'");
+        throw new RoomException(Code.EXISTING_USER_IN_ROOM_ERROR_CODE,
+            "User '" + userName + "' already exists in room '" + name + "'");
       }
     }
 
@@ -113,6 +117,12 @@ public class Room {
     participants.put(participantId, new Participant(participantId, userName, this, getPipeline(),
         dataChannels, webParticipant));
     activePublishersRegisterCount.put(participantId, new AtomicInteger(0));
+
+    filterStates.forEach((filterId, state) -> {
+      log.info("Adding filter {}", filterId);
+      // TODO: Fix
+      //roomHandler.updateFilter(name, participant, filterId, state);
+    });
 
     log.info("ROOM {}: Added participant {}", name, userName);
   }
@@ -154,9 +164,11 @@ public class Room {
 
     Participant participant = participants.get(participantId);
     if (participant == null) {
-      throw new RoomException(Code.USER_NOT_FOUND_ERROR_CODE, "User #" + participantId
-          + " not found in room '" + name + "'");
+      throw new RoomException(Code.USER_NOT_FOUND_ERROR_CODE,
+          "User #" + participantId + " not found in room '" + name + "'");
     }
+    participant.releaseAllFilters();
+
     log.info("PARTICIPANT {}: Leaving room {}", participant.getName(), this.name);
     for (String streamId : participant.getPublisherStreamIds()) {
       if (participant.isStreaming(streamId)) {
@@ -320,8 +332,9 @@ public class Room {
       pipeline.addErrorListener(new EventListener<ErrorEvent>() {
         @Override
         public void onEvent(ErrorEvent event) {
-          String desc = event.getType() + ": " + event.getDescription() + "(errCode="
-              + event.getErrorCode() + ")";
+          String desc =
+              event.getType() + ": " + event.getDescription() + "(errCode=" + event.getErrorCode()
+                  + ")";
           log.warn("ROOM {}: Pipeline error encountered: {}", name, desc);
           roomHandler.onPipelineError(name, getParticipants(), desc);
         }
@@ -348,6 +361,17 @@ public class Room {
           pipelineReleased = true;
         }
       });
+    }
+  }
+
+  public synchronized void updateFilter(String filterId) {
+    String state = filterStates.get(filterId);
+    String newState = roomHandler.getNextFilterState(filterId, state);
+
+    filterStates.put(filterId, newState);
+
+    for (Participant participant : participants.values()) {
+      roomHandler.updateFilter(getName(), participant, filterId, newState);
     }
   }
 }
