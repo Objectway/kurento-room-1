@@ -16,21 +16,7 @@
 
 package org.kurento.room;
 
-import javax.annotation.PreDestroy;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-
-import org.kurento.client.IceCandidate;
-import org.kurento.client.KurentoClient;
-import org.kurento.client.MediaElement;
-import org.kurento.client.MediaPipeline;
-import org.kurento.client.MediaType;
-import org.kurento.client.RtpEndpoint;
-import org.kurento.client.WebRtcEndpoint;
+import org.kurento.client.*;
 import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.api.KurentoClientSessionInfo;
 import org.kurento.room.api.MutedMediaType;
@@ -39,22 +25,27 @@ import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.endpoint.SdpType;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.exception.RoomException.Code;
+import org.kurento.room.interfaces.IParticipant;
+import org.kurento.room.interfaces.IRoomManager;
 import org.kurento.room.internal.Participant;
 import org.kurento.room.internal.Room;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.PreDestroy;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+
 /**
- * The Kurento room manager represents an SDK for any developer that wants to implement the Room
- * server-side application. They can build their application on top of the manager's Java API and
- * implement their desired business logic without having to consider room or media-specific details.
- * <p/>
- * The application is in control of notifying any remote parties with the outcome of executing the
- * requested actions.
+ * IRoomManager stateful implementation.
  *
  * @author <a href="mailto:rvlad@naevatec.com">Radu Tom Vlad</a>
  */
-public class RoomManager {
+public class RoomManager implements IRoomManager {
   private final Logger log = LoggerFactory.getLogger(RoomManager.class);
 
   private RoomHandler roomHandler;
@@ -79,31 +70,7 @@ public class RoomManager {
     this.kcProvider = kcProvider;
   }
 
-  /**
-   * Represents a client's request to join a room. The room must exist in order to perform the
-   * join.<br/>
-   * <strong>Dev advice:</strong> Send notifications to the existing participants in the room to
-   * inform about the new peer.
-   *
-   * @param userName       name or identifier of the user in the room. Will be used to identify
-   *                       her WebRTC media
-   *                       peer (from the client-side).
-   * @param roomName       name or identifier of the room
-   * @param dataChannels   enables data channels (if webParticipant)
-   * @param webParticipant if <strong>true</strong>, the internal media endpoints will use the
-   *                       trickle ICE
-   *                       mechanism when establishing connections with external media peers (
-   *                       {@link WebRtcEndpoint}); if <strong>false</strong>, the media endpoint
-   *                       will be a
-   *                       {@link RtpEndpoint}, with no ICE implementation
-   * @param webParticipant
-   * @param kcSessionInfo  sessionInfo bean to be used to create the room in case it doesn't
-   *                       exist (if null, the
-   *                       room will not be created)
-   * @param participantId  identifier of the participant
-   * @return set of existing peers of type {@link UserParticipant}, can be empty if first
-   * @throws RoomException on error while joining (like the room is not found or is closing)
-   */
+  @Override
   public Set<UserParticipant> joinRoom(String userName, String roomName, boolean dataChannels,
       boolean webParticipant, KurentoClientSessionInfo kcSessionInfo, String participantId)
       throws RoomException {
@@ -131,17 +98,7 @@ public class RoomManager {
     return existingParticipants;
   }
 
-  /**
-   * Represents a client's notification that she's leaving the room. Will also close the room if
-   * there're no more peers.<br/>
-   * <strong>Dev advice:</strong> Send notifications to the other participants in the room to inform
-   * about the one that's just left.
-   *
-   * @param participantId identifier of the participant
-   * @return set of remaining peers of type {@link UserParticipant}, if empty this method has closed
-   * the room
-   * @throws RoomException on error leaving the room
-   */
+  @Override
   public Set<UserParticipant> leaveRoom(String participantId) throws RoomException {
     log.debug("Request [LEAVE_ROOM] ({})", participantId);
     Participant participant = getParticipant(participantId);
@@ -171,37 +128,7 @@ public class RoomManager {
     return remainingParticipants;
   }
 
-  /**
-   * Represents a client's request to start streaming her local media to anyone inside the room. The
-   * media elements should have been created using the same pipeline as the publisher's. The
-   * streaming media endpoint situated on the server can be connected to itself thus realizing what
-   * is known as a loopback connection. The loopback is performed after applying all additional
-   * media elements specified as parameters (in the same order as they appear in the params list).
-   * <p>
-   * <br/>
-   * <strong>Dev advice:</strong> Send notifications to the existing participants in the room to
-   * inform about the new stream that has been published. Answer to the peer's request by sending it
-   * the SDP response (answer or updated offer) generated by the WebRTC endpoint on the server.
-   *
-   * @param participantId          identifier of the participant
-   * @param isOffer                if true, the sdp is an offer from remote, otherwise is the
-   *                               answer to the offer
-   *                               generated previously by the server endpoint
-   * @param sdp                    SDP String <strong>offer</strong> or <strong>answer</strong>,
-   *                               that's been generated by
-   *                               the client's WebRTC peer
-   * @param loopbackAlternativeSrc instead of connecting the endpoint to itself, use this
-   *                               {@link MediaElement} as source
-   * @param loopbackConnectionType the connection type for the loopback; if null, will stream
-   *                               both audio and video media
-   * @param doLoopback             loopback flag
-   * @param mediaElements          variable array of media elements (filters, recorders, etc.)
-   *                               that are connected between
-   *                               the source WebRTC endpoint and the subscriber endpoints
-   * @return the SDP response generated by the WebRTC endpoint on the server (answer to the client's
-   * offer or the updated offer previously generated by the server endpoint)
-   * @throws RoomException on error
-   */
+  @Override
   public String publishMedia(String participantId, final String streamId, final String streamType, boolean isOffer, String sdp,
       MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType, boolean doLoopback,
       MediaElement... mediaElements) throws RoomException {
@@ -237,41 +164,17 @@ public class RoomManager {
     return sdpResponse;
   }
 
-  /**
-   * Same as
-   * {@link #publishMedia(String, boolean, String, MediaElement, MediaType, boolean, MediaElement...)}
-   * where the sdp String is an offer generated by the remote peer, the published stream will be
-   * used for loopback (if required) and no specific type of loopback connection.
-   *
-   * @see #publishMedia(String, boolean, String, boolean, MediaElement, MediaElement...)
-   */
   public String publishMedia(String participantId, final String streamId, final String streamType, String sdp, boolean doLoopback,
       MediaElement... mediaElements) throws RoomException {
     return publishMedia(participantId, streamId, streamType, true, sdp, null, null, doLoopback, mediaElements);
   }
 
-  /**
-   * Same as
-   * {@link #publishMedia(String, boolean, String, MediaElement, MediaType, boolean, MediaElement...)}
-   * , using as loopback the published stream and no specific type of loopback connection.
-   *
-   * @see #publishMedia(String, boolean, String, boolean, MediaElement, MediaElement...)
-   */
   public String publishMedia(String participantId, final String streamId, final String streamType, boolean isOffer, String sdp, boolean doLoopback,
       MediaElement... mediaElements) throws RoomException {
     return publishMedia(participantId, streamId, streamType, isOffer, sdp, null, null, doLoopback, mediaElements);
   }
 
-  /**
-   * Represents a client's request to initiate the media connection from the server-side (generate
-   * the SDP offer and send it back to the client) and must be followed by processing the SDP answer
-   * from the client in order to establish the streaming.
-   *
-   * @param participantId identifier of the participant
-   * @return the SDP offer generated by the WebRTC endpoint on the server
-   * @throws RoomException on error
-   * @see #publishMedia(String, String, boolean, MediaElement...)
-   */
+  @Override
   public String generatePublishOffer(String participantId, final String streamId) throws RoomException {
     log.debug("Request [GET_PUBLISH_SDP_OFFER] ({})", participantId);
 
@@ -291,16 +194,7 @@ public class RoomManager {
     return sdpOffer;
   }
 
-  /**
-   * Represents a client's request to stop publishing her media stream. All media elements on the
-   * server-side connected to this peer will be disconnected and released. The peer is left ready
-   * for publishing her media in the future.<br/>
-   * <strong>Dev advice:</strong> Send notifications to the existing participants in the room to
-   * inform that streaming from this endpoint has ended.
-   *
-   * @param participantId identifier of the participant
-   * @throws RoomException on error
-   */
+  @Override
   public void unpublishMedia(String participantId, final String streamId) throws RoomException {
     log.debug("Request [UNPUBLISH_MEDIA] ({})", participantId);
     Participant participant = getParticipant(participantId);
@@ -314,19 +208,7 @@ public class RoomManager {
     room.cancelPublisher(participant, streamId);
   }
 
-  /**
-   * Represents a client's request to receive media from room participants that published their
-   * media. Will have the same result when a publisher requests its own media stream.<br/>
-   * <strong>Dev advice:</strong> Answer to the peer's request by sending it the SDP answer
-   * generated by the the receiving WebRTC endpoint on the server.
-   *
-   * @param remoteName    identification of the remote stream which is effectively the peer's
-   *                      name (participant)
-   * @param sdpOffer      SDP offer String generated by the client's WebRTC peer
-   * @param participantId identifier of the participant
-   * @return the SDP answer generated by the receiving WebRTC endpoint on the server
-   * @throws RoomException on error
-   */
+  @Override
   public String subscribe(String remoteName, final String streamId, String sdpOffer, String participantId)
       throws RoomException {
     log.debug("Request [SUBSCRIBE] remoteParticipant={} sdpOffer={} ({})", remoteName, sdpOffer,
@@ -358,14 +240,7 @@ public class RoomManager {
     return sdpAnswer;
   }
 
-  /**
-   * Represents a client's request to stop receiving media from the remote peer.
-   *
-   * @param remoteName    identification of the remote stream which is effectively the peer's
-   *                      name (participant)
-   * @param participantId identifier of the participant
-   * @throws RoomException on error
-   */
+  @Override
   public void unsubscribe(String remoteName, String participantId, final String streamId) throws RoomException {
     log.debug("Request [UNSUBSCRIBE] remoteParticipant={} ({})", remoteName, participantId);
     Participant participant = getParticipant(participantId);
@@ -381,22 +256,7 @@ public class RoomManager {
     participant.cancelReceivingMedia(remoteName, streamId);
   }
 
-  /**
-   * Request that carries info about an ICE candidate gathered on the client side. This information
-   * is required to implement the trickle ICE mechanism. Should be triggered or called whenever an
-   * icecandidate event is created by a RTCPeerConnection.
-   *
-   * @param endpointName  the name of the peer whose ICE candidate was gathered
-   * @param candidate     the candidate attribute information
-   * @param sdpMLineIndex the index (starting at zero) of the m-line in the SDP this candidate is
-   *                      associated
-   *                      with
-   * @param sdpMid        media stream identification, "audio" or "video", for the m-line this
-   *                      candidate is
-   *                      associated with
-   * @param participantId identifier of the participant
-   * @throws RoomException on error
-   */
+  @Override
   public void onIceCandidate(String endpointName, final String streamId, String candidate, int sdpMLineIndex,
       String sdpMid, String participantId) throws RoomException {
     log.debug("Request [ICE_CANDIDATE] endpoint={} candidate={} " + "sdpMLineIdx={} sdpMid={} ({})",
@@ -405,34 +265,11 @@ public class RoomManager {
     participant.addIceCandidate(endpointName, streamId, new IceCandidate(candidate, sdpMid, sdpMLineIndex));
   }
 
-  /**
-   * Applies a media element (filter, recorder, mixer, etc.) to media that is currently streaming or
-   * that might get streamed sometime in the future. The element should have been created using the
-   * same pipeline as the publisher's.
-   *
-   * @param participantId identifier of the owner of the stream
-   * @param element       media element to be added
-   * @throws RoomException in case the participant doesn't exist, has been closed or on error
-   *                       when applying the
-   *                       filter
-   */
   public void addMediaElement(String participantId, final String streamId, MediaElement element) throws RoomException {
     addMediaElement(participantId, streamId, element, null);
   }
 
-  /**
-   * Applies a media element (filter, recorder, mixer, etc.) to media that is currently streaming or
-   * that might get streamed sometime in the future. The element should have been created using the
-   * same pipeline as the publisher's. The media connection can be of any type, that is audio,
-   * video, data or any (when the parameter is null).
-   *
-   * @param participantId identifier of the owner of the stream
-   * @param element       media element to be added
-   * @param type          the connection type (null is accepted, has the same result as calling
-   *                      {@link #addMediaElement(String, MediaElement)})
-   * @throws RoomException in case the participant doesn't exist, has been closed or on error
-   *                       when applying the filter
-   */
+  @Override
   public void addMediaElement(String participantId, final String streamId, MediaElement element, MediaType type)
       throws RoomException {
     log.debug("Add media element {} (connection type: {}) to participant {}", element.getId(), type,
@@ -446,15 +283,7 @@ public class RoomManager {
     participant.shapePublisherMedia(element, type, streamId);
   }
 
-  /**
-   * Disconnects and removes media element (filter, recorder, etc.) from a media stream.
-   *
-   * @param participantId identifier of the participant
-   * @param element       media element to be removed
-   * @throws RoomException in case the participant doesn't exist, has been closed or on error
-   *                       when removing the
-   *                       filter
-   */
+  @Override
   public void removeMediaElement(String participantId, final String streamId, MediaElement element) throws RoomException {
     log.debug("Remove media element {} from participant {}", element.getId(), participantId);
     Participant participant = getParticipant(participantId);
@@ -466,15 +295,7 @@ public class RoomManager {
     participant.getPublisher(streamId).revert(element);
   }
 
-  /**
-   * Mutes the streamed media of this publisher in a selective manner.
-   *
-   * @param muteType      which leg should be disconnected (audio, video or both)
-   * @param participantId identifier of the participant
-   * @throws RoomException in case the participant doesn't exist, has been closed, is not
-   *                       publishing or on error
-   *                       when performing the mute operation
-   */
+  @Override
   public void mutePublishedMedia(MutedMediaType muteType, String participantId, final String streamId)
       throws RoomException {
     log.debug("Request [MUTE_PUBLISHED] muteType={} ({})", muteType, participantId);
@@ -491,14 +312,7 @@ public class RoomManager {
     participant.mutePublishedMedia(muteType, streamId);
   }
 
-  /**
-   * Reverts the effects of the mute operation.
-   *
-   * @param participantId identifier of the participant
-   * @throws RoomException in case the participant doesn't exist, has been closed, is not
-   *                       publishing or on error
-   *                       when reverting the mute operation
-   */
+  @Override
   public void unmutePublishedMedia(String participantId, final String streamId) throws RoomException {
     log.debug("Request [UNMUTE_PUBLISHED] muteType={} ({})", participantId);
     Participant participant = getParticipant(participantId);
@@ -514,17 +328,7 @@ public class RoomManager {
     participant.unmutePublishedMedia(streamId);
   }
 
-  /**
-   * Mutes the incoming media stream from the remote publisher in a selective manner.
-   *
-   * @param remoteName    identification of the remote stream which is effectively the peer's
-   *                      name (participant)
-   * @param muteType      which leg should be disconnected (audio, video or both)
-   * @param participantId identifier of the participant
-   * @throws RoomException in case the participant doesn't exist, has been closed, is not
-   *                       publishing or on error
-   *                       when performing the mute operation
-   */
+  @Override
   public void muteSubscribedMedia(String remoteName, final String streamId, MutedMediaType muteType, String participantId)
       throws RoomException {
     remoteName = remoteName + "_" + streamId;
@@ -550,16 +354,7 @@ public class RoomManager {
     participant.muteSubscribedMedia(senderParticipant, streamId, muteType);
   }
 
-  /**
-   * Reverts any previous mute operation.
-   *
-   * @param remoteName    identification of the remote stream which is effectively the peer's
-   *                      name (participant)
-   * @param participantId identifier of the participant
-   * @throws RoomException in case the participant doesn't exist, has been closed or on error
-   *                       when reverting the
-   *                       mute operation
-   */
+  @Override
   public void unmuteSubscribedMedia(String remoteName, final String streamId, String participantId) throws RoomException {
     remoteName = remoteName + "_" + streamId;
     log.debug("Request [UNMUTE_SUBSCRIBED] remoteParticipant={} ({})", remoteName, participantId);
@@ -584,15 +379,7 @@ public class RoomManager {
 
   // ----------------- ADMIN (DIRECT or SERVER-SIDE) REQUESTS ------------
 
-  /**
-   * Closes all resources. This method has been annotated with the @PreDestroy directive
-   * (javax.annotation package) so that it will be automatically called when the RoomManager
-   * instance is container-managed. <br/>
-   * <strong>Dev advice:</strong> Send notifications to all participants to inform that their room
-   * has been forcibly closed.
-   *
-   * @see RoomManager#closeRoom(String)
-   */
+  @Override
   @PreDestroy
   public void close() {
     closed = true;
@@ -606,38 +393,25 @@ public class RoomManager {
     }
   }
 
-  /**
-   * @return true after {@link #close()} has been called
-   */
+  @Override
   public boolean isClosed() {
     return closed;
   }
 
-  /**
-   * Returns all currently active (opened) rooms.
-   *
-   * @return set of the rooms' identifiers (names)
-   */
+  @Override
   public Set<String> getRooms() {
     return new HashSet<String>(rooms.keySet());
   }
 
-  /**
-   * Returns all the participants inside a room.
-   *
-   * @param roomName name or identifier of the room
-   * @return set of {@link UserParticipant} POJOS (an instance contains the participant's identifier
-   * and her user name)
-   * @throws RoomException in case the room doesn't exist
-   */
+  @Override
   public Set<UserParticipant> getParticipants(String roomName) throws RoomException {
     Room room = rooms.get(roomName);
     if (room == null) {
       throw new RoomException(Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomName + "' not found");
     }
-    Collection<Participant> participants = room.getParticipants();
+    Collection<? extends IParticipant> participants = room.getParticipants();
     Set<UserParticipant> userParts = new HashSet<UserParticipant>();
-    for (Participant p : participants) {
+    for (IParticipant p : participants) {
       if (!p.isClosed()) {
         userParts.add(new UserParticipant(p.getId(), p.getName(), p.isAnyStreaming()));
       }
@@ -645,21 +419,15 @@ public class RoomManager {
     return userParts;
   }
 
-  /**
-   * Returns all the publishers (participants streaming their media) inside a room.
-   *
-   * @param roomName name or identifier of the room
-   * @return set of {@link UserParticipant} POJOS representing the existing publishers
-   * @throws RoomException in case the room doesn't exist
-   */
+  @Override
   public Set<UserParticipant> getPublishers(String roomName) throws RoomException {
     Room r = rooms.get(roomName);
     if (r == null) {
       throw new RoomException(Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomName + "' not found");
     }
-    Collection<Participant> participants = r.getParticipants();
+    Collection<? extends IParticipant> participants = r.getParticipants();
     Set<UserParticipant> userParts = new HashSet<UserParticipant>();
-    for (Participant p : participants) {
+    for (IParticipant p : participants) {
       if (!p.isClosed() && p.isAnyStreaming()) {
         userParts.add(new UserParticipant(p.getId(), p.getName(), true));
       }
@@ -667,24 +435,15 @@ public class RoomManager {
     return userParts;
   }
 
-  /**
-   * Returns all the subscribers (participants subscribed to a least one stream of another user)
-   * inside a room. A publisher which subscribes to its own stream (loopback) and will not be
-   * included in the returned values unless it requests explicitly a connection to another user's
-   * stream.
-   *
-   * @param roomName name or identifier of the room
-   * @return set of {@link UserParticipant} POJOS representing the existing subscribers
-   * @throws RoomException in case the room doesn't exist
-   */
+  @Override
   public Set<UserParticipant> getSubscribers(String roomName) throws RoomException {
     Room r = rooms.get(roomName);
     if (r == null) {
       throw new RoomException(Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomName + "' not found");
     }
-    Collection<Participant> participants = r.getParticipants();
+    Collection<? extends IParticipant> participants = r.getParticipants();
     Set<UserParticipant> userParts = new HashSet<UserParticipant>();
-    for (Participant p : participants) {
+    for (IParticipant p : participants) {
       if (!p.isClosed() && p.isSubscribed()) {
         userParts.add(new UserParticipant(p.getId(), p.getName(), p.isAnyStreaming()));
       }
@@ -692,15 +451,7 @@ public class RoomManager {
     return userParts;
   }
 
-  /**
-   * Returns the peer's publishers (participants from which the peer is receiving media). The own
-   * stream doesn't count.
-   *
-   * @param participantId identifier of the participant
-   * @return set of {@link UserParticipant} POJOS representing the publishers this participant is
-   * currently subscribed to
-   * @throws RoomException in case the participant doesn't exist
-   */
+  @Override
   public Set<UserParticipant> getPeerPublishers(String participantId) throws RoomException {
     Participant participant = getParticipant(participantId);
     if (participant == null) {
@@ -717,15 +468,7 @@ public class RoomManager {
     return userParts;
   }
 
-  /**
-   * Returns the peer's subscribers (participants towards the peer is streaming media). The own
-   * stream doesn't count.
-   *
-   * @param participantId identifier of the participant
-   * @return set of {@link UserParticipant} POJOS representing the participants subscribed to this
-   * peer
-   * @throws RoomException in case the participant doesn't exist
-   */
+  @Override
   public Set<UserParticipant> getPeerSubscribers(String participantId) throws RoomException {
     Participant participant = getParticipant(participantId);
     if (participant == null) {
@@ -739,7 +482,7 @@ public class RoomManager {
     Set<UserParticipant> userParts = new HashSet<UserParticipant>();
     Room room = participant.getRoom();
     String endpointName = participant.getName();
-    for (Participant p : room.getParticipants()) {
+    for (IParticipant p : room.getParticipants()) {
       if (p.equals(participant)) {
         continue;
       }
@@ -751,13 +494,7 @@ public class RoomManager {
     return userParts;
   }
 
-  /**
-   * Checks if a participant is currently streaming media.
-   *
-   * @param participantId identifier of the participant
-   * @return true if the participant is streaming media, false otherwise
-   * @throws RoomException in case the participant doesn't exist or has been closed
-   */
+  @Override
   public boolean isPublisherStreaming(String participantId) throws RoomException {
     Participant participant = getParticipant(participantId);
     if (participant == null) {
@@ -771,15 +508,7 @@ public class RoomManager {
     return participant.isAnyStreaming();
   }
 
-  /**
-   * Creates a room if it doesn't already exist. The room's name will be indicated by the session
-   * info bean.
-   *
-   * @param kcSessionInfo bean that will be passed to the {@link KurentoClientProvider} in order
-   *                      to obtain the
-   *                      {@link KurentoClient} that will be used by the room
-   * @throws RoomException in case of error while creating the room
-   */
+  @Override
   public void createRoom(KurentoClientSessionInfo kcSessionInfo) throws RoomException {
     String roomName = kcSessionInfo.getRoomName();
     Room room = rooms.get(kcSessionInfo);
@@ -810,17 +539,7 @@ public class RoomManager {
         kcName);
   }
 
-  /**
-   * Closes an existing room by releasing all resources that were allocated for the room. Once
-   * closed, the room can be reopened (will be empty and it will use another Media Pipeline).
-   * Existing participants will be evicted. <br/>
-   * <strong>Dev advice:</strong> The room event handler should send notifications to the existing
-   * participants in the room to inform that the room was forcibly closed.
-   *
-   * @param roomName name or identifier of the room
-   * @return set of {@link UserParticipant} POJOS representing the room's participants
-   * @throws RoomException in case the room doesn't exist or has been already closed
-   */
+  @Override
   public Set<UserParticipant> closeRoom(String roomName) throws RoomException {
     Room room = rooms.get(roomName);
     if (room == null) {
@@ -846,13 +565,7 @@ public class RoomManager {
     return participants;
   }
 
-  /**
-   * Returns the media pipeline used by the participant.
-   *
-   * @param participantId identifier of the participant
-   * @return the Media Pipeline object
-   * @throws RoomException in case the participant doesn't exist
-   */
+  @Override
   public MediaPipeline getPipeline(String participantId) throws RoomException {
     Participant participant = getParticipant(participantId);
     if (participant == null) {
@@ -862,38 +575,19 @@ public class RoomManager {
     return participant.getPipeline();
   }
 
-  /**
-   * Finds the room's name of a given participant.
-   *
-   * @param participantId identifier of the participant
-   * @return the name of the room
-   * @throws RoomException in case the participant doesn't exist
-   */
+  @Override
   public String getRoomName(String participantId) throws RoomException {
     Participant participant = getParticipant(participantId);
     return participant.getRoom().getName();
   }
 
-  /**
-   * Finds the participant's username.
-   *
-   * @param participantId identifier of the participant
-   * @return the participant's name
-   * @throws RoomException in case the participant doesn't exist
-   */
+  @Override
   public String getParticipantName(String participantId) throws RoomException {
     Participant participant = getParticipant(participantId);
     return participant.getName();
   }
 
-  /**
-   * Searches for the participant using her identifier and returns the corresponding
-   * {@link UserParticipant} POJO.
-   *
-   * @param participantId identifier of the participant
-   * @return {@link UserParticipant} POJO containing the participant's name and identifier
-   * @throws RoomException in case the participant doesn't exist
-   */
+  @Override
   public UserParticipant getParticipantInfo(String participantId) throws RoomException {
     Participant participant = getParticipant(participantId);
     return new UserParticipant(participantId, participant.getName());
@@ -913,6 +607,7 @@ public class RoomManager {
         "No participant with id '" + pid + "' was found");
   }
 
+  @Override
   public void updateFilter(String roomId, String filterId) {
     Room room = rooms.get(roomId);
 

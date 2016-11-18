@@ -20,6 +20,8 @@ import org.kurento.client.*;
 import org.kurento.room.api.RoomHandler;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.exception.RoomException.Code;
+import org.kurento.room.interfaces.IParticipant;
+import org.kurento.room.interfaces.IRoom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,18 +34,19 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * IRoom (stateful) implementation.
+ *
  * @author Ivan Gracia (izanmail@gmail.com)
  * @author Micael Gallego (micael.gallego@gmail.com)
  * @author Radu Tom Vlad (rvlad@naevatec.com)
  * @since 1.0.0
  */
-public class Room {
+public class Room implements IRoom {
   public static final int ASYNC_LATCH_TIMEOUT = 30;
 
   private final static Logger log = LoggerFactory.getLogger(Room.class);
 
-  private final ConcurrentMap<String, Participant> participants =
-      new ConcurrentHashMap<String, Participant>();
+  private final ConcurrentMap<String, Participant> participants = new ConcurrentHashMap<String, Participant>();
   private final String name;
 
   private MediaPipeline pipeline;
@@ -75,10 +78,12 @@ public class Room {
     log.debug("New ROOM instance, named '{}'", roomName);
   }
 
+  @Override
   public String getName() {
     return name;
   }
 
+  @Override
   public MediaPipeline getPipeline() {
     // The pipeline creation process is not triggered when we do not have
     // a KMS provider, so if we wait on pipelineLatch we would loop indefinitely
@@ -94,6 +99,7 @@ public class Room {
     return this.pipeline;
   }
 
+  @Override
   public synchronized void join(String participantId, String userName, boolean dataChannels,
       boolean webParticipant) throws RoomException {
 
@@ -127,7 +133,8 @@ public class Room {
     log.info("ROOM {}: Added participant {}", name, userName);
   }
 
-  public void newPublisher(Participant participant, final String streamId) {
+  @Override
+  public void newPublisher(IParticipant participant, final String streamId) {
     registerPublisher(participant.getId());
 
     // pre-load endpoints to recv video from the new publisher
@@ -142,7 +149,8 @@ public class Room {
         participants.values(), participant.getName());
   }
 
-  public void cancelPublisher(Participant participant, final String streamId) {
+  @Override
+  public void cancelPublisher(IParticipant participant, final String streamId) {
     deregisterPublisher(participant.getId());
 
     // cancel recv video from this publisher
@@ -158,6 +166,7 @@ public class Room {
 
   }
 
+  @Override
   public void leave(String participantId) throws RoomException {
 
     checkClosed();
@@ -179,13 +188,15 @@ public class Room {
     participant.close();
   }
 
-  public Collection<Participant> getParticipants() {
+  @Override
+  public Collection<? extends IParticipant> getParticipants() {
 
     checkClosed();
 
     return participants.values();
   }
 
+  @Override
   public Set<String> getParticipantIds() {
 
     checkClosed();
@@ -193,6 +204,7 @@ public class Room {
     return participants.keySet();
   }
 
+  @Override
   public Participant getParticipant(String participantId) {
 
     checkClosed();
@@ -200,6 +212,7 @@ public class Room {
     return participants.get(participantId);
   }
 
+  @Override
   public Participant getParticipantByName(String userName) {
 
     checkClosed();
@@ -213,6 +226,7 @@ public class Room {
     return null;
   }
 
+  @Override
   public void close() {
     if (!closed) {
 
@@ -240,14 +254,17 @@ public class Room {
     }
   }
 
+  @Override
   public void sendIceCandidate(String participantId, String participantName, String endpointName, final String streamId, IceCandidate candidate) {
     this.roomHandler.onIceCandidate(name, participantId, participantName, endpointName, streamId, candidate);
   }
 
+  @Override
   public void sendMediaError(String participantId, String participantName, String description) {
     this.roomHandler.onMediaElementError(name, participantId, participantName, description);
   }
 
+  @Override
   public boolean isClosed() {
     return closed;
   }
@@ -271,6 +288,7 @@ public class Room {
     }
   }
 
+  @Override
   public int getActivePublishers() {
     int result = 0;
 
@@ -287,10 +305,12 @@ public class Room {
     return result;
   }
 
+  @Override
   public void registerPublisher(final String participantId) {
     this.activePublishersRegisterCount.get(participantId).incrementAndGet();
   }
 
+  @Override
   public void deregisterPublisher(final String participantId) {
     this.activePublishersRegisterCount.get(participantId).decrementAndGet();
   }
@@ -336,7 +356,7 @@ public class Room {
               event.getType() + ": " + event.getDescription() + "(errCode=" + event.getErrorCode()
                   + ")";
           log.warn("ROOM {}: Pipeline error encountered: {}", name, desc);
-          roomHandler.onPipelineError(name, getParticipants(), desc);
+          roomHandler.onPipelineError(name, (Collection<Participant>)getParticipants(), desc);
         }
       });
     }
@@ -364,6 +384,7 @@ public class Room {
     }
   }
 
+  @Override
   public synchronized void updateFilter(String filterId) {
     String state = filterStates.get(filterId);
     String newState = roomHandler.getNextFilterState(filterId, state);
