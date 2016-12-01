@@ -59,4 +59,19 @@ public class UsernameSessionIdMapper {
 
         return null;
     }
+
+    public String toString() {
+        final StringBuilder sb = new StringBuilder();
+        for (Map.Entry<String, List<String>> entry : map.entrySet()) {
+            sb.append(entry.getKey() + " -> ");
+            sb.append("{");
+            for (String s : entry.getValue()) {
+                sb.append(s + ", ");
+            }
+            sb.append("}");
+            sb.append("\n");
+        }
+
+        return sb.toString();
+    }
 }
