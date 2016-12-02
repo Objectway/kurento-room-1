@@ -31,6 +31,7 @@ import org.kurento.room.internal.Participant;
 import org.kurento.room.internal.Room;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.PreDestroy;
 import java.util.Collection;
@@ -45,6 +46,7 @@ import java.util.concurrent.ConcurrentMap;
  *
  * @author <a href="mailto:rvlad@naevatec.com">Radu Tom Vlad</a>
  */
+@Component
 public class RoomManager implements IRoomManager {
   private final Logger log = LoggerFactory.getLogger(RoomManager.class);
 

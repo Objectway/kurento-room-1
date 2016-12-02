@@ -16,25 +16,23 @@
 
 package org.kurento.room;
 
-import javax.annotation.PreDestroy;
-import java.util.Set;
-
 import org.kurento.client.MediaElement;
 import org.kurento.client.MediaPipeline;
 import org.kurento.client.MediaType;
-import org.kurento.room.api.KurentoClientProvider;
-import org.kurento.room.api.KurentoClientSessionInfo;
-import org.kurento.room.api.MutedMediaType;
-import org.kurento.room.api.NotificationRoomHandler;
-import org.kurento.room.api.UserNotificationService;
+import org.kurento.room.api.*;
 import org.kurento.room.api.pojo.ParticipantRequest;
 import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.exception.RoomException;
-import org.kurento.room.exception.RoomException.Code;
+import org.kurento.room.interfaces.IRoomManager;
 import org.kurento.room.internal.DefaultKurentoClientSessionInfo;
 import org.kurento.room.internal.DefaultNotificationRoomHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
+import java.util.Set;
 
 /**
  * The Kurento room manager represents an SDK for any developer that wants to implement the Room
@@ -50,22 +48,9 @@ public class NotificationRoomManager {
   private final Logger log = LoggerFactory.getLogger(NotificationRoomManager.class);
 
   private NotificationRoomHandler notificationRoomHandler;
-  private RoomManager internalManager;
 
-  /**
-   * Provides an instance of the room manager by setting an user notification service that will be
-   * used by the default event handler to send responses and notifications back to the clients.
-   *
-   * @param notificationService encapsulates the communication layer, used to instantiate
-   *                            {@link DefaultNotificationRoomHandler}
-   * @param kcProvider          enables the manager to obtain Kurento Client instances
-   */
-  public NotificationRoomManager(UserNotificationService notificationService,
-      KurentoClientProvider kcProvider) {
-    super();
-    this.notificationRoomHandler = new DefaultNotificationRoomHandler(notificationService);
-    this.internalManager = new RoomManager(notificationRoomHandler, kcProvider);
-  }
+  @Autowired
+  private IRoomManager internalManager;
 
   /**
    * Provides an instance of the room manager by setting an event handler.
@@ -77,7 +62,6 @@ public class NotificationRoomManager {
       KurentoClientProvider kcProvider) {
     super();
     this.notificationRoomHandler = notificationRoomHandler;
-    this.internalManager = new RoomManager(notificationRoomHandler, kcProvider);
   }
 
   // ----------------- CLIENT-ORIGINATED REQUESTS ------------
@@ -394,7 +378,7 @@ public class NotificationRoomManager {
    * @see RoomManager#addMediaElement(String, MediaElement)
    */
   public void addMediaElement(String participantId, final String streamId, MediaElement element) throws RoomException {
-    internalManager.addMediaElement(participantId, streamId, element);
+    internalManager.addMediaElement(participantId, streamId, element, null);
   }
 
   /**
@@ -442,7 +426,7 @@ public class NotificationRoomManager {
     internalManager.unmuteSubscribedMedia(remoteName, streamId, participantId);
   }
 
-  public RoomManager getRoomManager() {
+  public IRoomManager getRoomManager() {
     return internalManager;
   }
 
