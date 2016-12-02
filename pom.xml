@@ -14,7 +14,7 @@
 
 	<name>Kurento Room</name>
 	<description>
-        Kurento Room modules: sdk, client, server, demo and test
+        Kurento Room modules: sdk, client, server, demo
     </description>
 	<url>http://www.kurento.org/docs/${project.version}</url>
 
