@@ -20,6 +20,10 @@ body {
     font-family: 'Open Sans', sans-serif;
 }
 
+.roomUrl {
+	margin: 40px auto 30px;
+}
+
 #main-video {
     height: 100%;
     width: 100%;
@@ -41,7 +45,7 @@ body {
 }
 
 #main-video video {
-    object-fit: cover;
+    object-fit: contain;
 }
 
 video {
@@ -123,7 +127,7 @@ video {
     /* whatever width you want */
     position: relative;
     float: right;
-    display: table;
+    display: block;
 }
 
 .video:after {

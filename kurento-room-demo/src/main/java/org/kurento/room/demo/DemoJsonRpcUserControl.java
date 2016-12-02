@@ -17,6 +17,7 @@
 package org.kurento.room.demo;
 
 import java.io.IOException;
+import java.util.SortedMap;
 
 import org.kurento.client.FaceOverlayFilter;
 import org.kurento.client.MediaElement;
@@ -31,32 +32,43 @@ import org.slf4j.LoggerFactory;
 import com.google.gson.JsonObject;
 
 /**
- * User control that applies a face overlay filter when publishing video.
+ * User control that applies a media filter when publishing video.
  *
  * @author Radu Tom Vlad (rvlad@naevatec.com)
  */
 public class DemoJsonRpcUserControl extends JsonRpcUserControl {
 
-  private static final String SESSION_ATTRIBUTE_HAT_FILTER = "hatFilter";
-
-  private static final String CUSTOM_REQUEST_HAT_PARAM = "hat";
+  private static final String SESSION_ATTRIBUTE_FILTER = "customFilter";
+  private static final String MARKER_ID = "markerFilterId";
 
   private static final Logger log = LoggerFactory.getLogger(DemoJsonRpcUserControl.class);
 
-  private String hatUrl;
+  private KmsFilterType filterType = KmsFilterType.HAT;
 
+  private String hatUrl;
   private float offsetXPercent;
   private float offsetYPercent;
   private float widthPercent;
   private float heightPercent;
 
+  private SortedMap<Integer, String> markerUrls;
+
   public DemoJsonRpcUserControl(NotificationRoomManager roomManager) {
     super(roomManager);
+  }
+
+  public void setFilterType(KmsFilterType type) {
+    this.filterType = type;
   }
 
   public void setHatUrl(String hatUrl) {
     this.hatUrl = hatUrl;
     log.info("Hat URL: {}", hatUrl);
+  }
+
+  public void setMarkerUrls(SortedMap<Integer, String> urls) {
+    this.markerUrls = urls;
+    log.info("Marker URL: {}", markerUrls);
   }
 
   public void setHatCoords(JsonObject hatCoords) {
@@ -73,7 +85,7 @@ public class DemoJsonRpcUserControl extends JsonRpcUserControl {
       heightPercent = hatCoords.get("heightPercent").getAsFloat();
     }
     log.info("Hat coords:\n\toffsetXPercent = {}\n\toffsetYPercent = {}"
-        + "\n\twidthPercent = {}\n\theightPercent = {}", offsetXPercent, offsetYPercent,
+            + "\n\twidthPercent = {}\n\theightPercent = {}", offsetXPercent, offsetYPercent,
         widthPercent, heightPercent);
   }
 
@@ -81,33 +93,19 @@ public class DemoJsonRpcUserControl extends JsonRpcUserControl {
   public void customRequest(Transaction transaction, Request<JsonObject> request,
       ParticipantRequest participantRequest) {
     try {
-      if (request.getParams() == null || request.getParams().get(CUSTOM_REQUEST_HAT_PARAM) == null) {
-        throw new RuntimeException("Request element '" + CUSTOM_REQUEST_HAT_PARAM + "' is missing");
+      if (request.getParams() == null
+          || request.getParams().get(filterType.getCustomRequestParam()) == null) {
+        throw new RuntimeException(
+            "Request element '" + filterType.getCustomRequestParam() + "' is missing");
       }
-      boolean hatOn = request.getParams().get(CUSTOM_REQUEST_HAT_PARAM).getAsBoolean();
-      String pid = participantRequest.getParticipantId();
-      if (hatOn) {
-        if (transaction.getSession().getAttributes().containsKey(SESSION_ATTRIBUTE_HAT_FILTER)) {
-          throw new RuntimeException("Hat filter already on");
-        }
-        log.info("Applying face overlay filter to session {}", pid);
-        FaceOverlayFilter faceOverlayFilter = new FaceOverlayFilter.Builder(
-            roomManager.getPipeline(pid)).build();
-        faceOverlayFilter.setOverlayedImage(this.hatUrl, this.offsetXPercent, this.offsetYPercent,
-            this.widthPercent, this.heightPercent);
-        roomManager.addMediaElement(pid, faceOverlayFilter);
-        transaction.getSession().getAttributes()
-        .put(SESSION_ATTRIBUTE_HAT_FILTER, faceOverlayFilter);
-      } else {
-        if (!transaction.getSession().getAttributes().containsKey(SESSION_ATTRIBUTE_HAT_FILTER)) {
-          throw new RuntimeException("This user has no hat filter yet");
-        }
-        log.info("Removing face overlay filter from session {}", pid);
-        roomManager.removeMediaElement(pid, (MediaElement) transaction.getSession().getAttributes()
-            .get(SESSION_ATTRIBUTE_HAT_FILTER));
-        transaction.getSession().getAttributes().remove(SESSION_ATTRIBUTE_HAT_FILTER);
+      switch (filterType) {
+        case MARKER:
+          handleMarkerRequest(transaction, request, participantRequest);
+          break;
+        case HAT:
+        default:
+          handleHatRequest(transaction, request, participantRequest);
       }
-      transaction.sendResponse(new JsonObject());
     } catch (Exception e) {
       log.error("Unable to handle custom request", e);
       try {
@@ -116,5 +114,56 @@ public class DemoJsonRpcUserControl extends JsonRpcUserControl {
         log.warn("Unable to send error response", e1);
       }
     }
+  }
+
+  private void handleHatRequest(Transaction transaction, Request<JsonObject> request,
+      ParticipantRequest participantRequest) throws IOException {
+    boolean filterOn = request.getParams().get(filterType.getCustomRequestParam()).getAsBoolean();
+    String pid = participantRequest.getParticipantId();
+    if (filterOn) {
+      if (transaction.getSession().getAttributes().containsKey(SESSION_ATTRIBUTE_FILTER)) {
+        throw new RuntimeException(filterType + " filter already on");
+      }
+      log.info("Applying {} filter to session {}", filterType, pid);
+
+      FaceOverlayFilter filter =
+          new FaceOverlayFilter.Builder(roomManager.getPipeline(pid)).build();
+      filter.setOverlayedImage(this.hatUrl, this.offsetXPercent, this.offsetYPercent,
+          this.widthPercent, this.heightPercent);
+
+      addFilter(transaction, pid, filter);
+    } else {
+      removeFilter(transaction, pid);
+    }
+    transaction.sendResponse(new JsonObject());
+  }
+
+  private void handleMarkerRequest(final Transaction transaction, Request<JsonObject> request,
+      ParticipantRequest participantRequest) throws IOException {
+    Integer currentUrlIndex =
+        request.getParams().get(filterType.getCustomRequestParam()).getAsInt();
+    String pid = participantRequest.getParticipantId();
+
+    roomManager.updateFilter(roomManager.getRoomManager().getRoomName(pid), MARKER_ID);
+
+    JsonObject result = new JsonObject();
+    // TODO: Change RPC to remove next index requirement
+    // result.addProperty(filterType.getCustomRequestParam(), 0);
+    transaction.sendResponse(result);
+  }
+
+  private void addFilter(Transaction transaction, String pid, MediaElement filter) {
+    roomManager.addMediaElement(pid, filter);
+    transaction.getSession().getAttributes().put(SESSION_ATTRIBUTE_FILTER, filter);
+  }
+
+  private void removeFilter(Transaction transaction, String pid) {
+    if (!transaction.getSession().getAttributes().containsKey(SESSION_ATTRIBUTE_FILTER)) {
+      throw new RuntimeException("This user has no " + filterType + " filter yet");
+    }
+    log.info("Removing {} filter from session {}", filterType, pid);
+    roomManager.removeMediaElement(pid,
+        (MediaElement) transaction.getSession().getAttributes().get(SESSION_ATTRIBUTE_FILTER));
+    transaction.getSession().getAttributes().remove(SESSION_ATTRIBUTE_FILTER);
   }
 }

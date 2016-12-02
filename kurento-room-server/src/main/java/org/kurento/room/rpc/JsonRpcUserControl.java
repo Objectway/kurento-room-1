@@ -32,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.google.gson.JsonObject;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /**
  * Controls the user interactions by delegating her JSON-RPC requests to the room API.
@@ -149,6 +150,10 @@ public class JsonRpcUserControl {
     }
   }
 
+  public void onConnectionClosed(final Session session) {
+    throw new NotImplementedException();
+  }
+
   public void onIceCandidate(Transaction transaction, Request<JsonObject> request,
       ParticipantRequest participantRequest) {
     String endpointName = getStringParam(request, ProtocolElements.ONICECANDIDATE_EPNAME_PARAM);
@@ -168,6 +173,7 @@ public class JsonRpcUserControl {
 
     log.debug("Message from {} in room {}: '{}'", userName, roomName, message);
 
+    // We must not use the roomManager for sending notifications
     roomManager.sendMessage(message, userName, roomName, participantRequest);
   }
 

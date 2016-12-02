@@ -16,6 +16,7 @@
 
 package org.kurento.room.internal;
 
+import java.util.Collection;
 import java.util.Set;
 
 import org.kurento.client.IceCandidate;
@@ -27,6 +28,7 @@ import org.kurento.room.exception.RoomException;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /**
  * Default implementation that assumes that JSON-RPC messages specification was used for the
@@ -47,8 +49,8 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
     JsonObject notifParams = new JsonObject();
     notifParams.addProperty(ProtocolElements.ROOMCLOSED_ROOM_PARAM, roomName);
     for (UserParticipant participant : participants) {
-      notifService.sendNotification(participant.getParticipantId(),
-          ProtocolElements.ROOMCLOSED_METHOD, notifParams);
+//      notifService.sendNotification(participant.getParticipantId(),
+//          ProtocolElements.ROOMCLOSED_METHOD, notifParams);
     }
   }
 
@@ -76,8 +78,8 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
 
       JsonObject notifParams = new JsonObject();
       notifParams.addProperty(ProtocolElements.PARTICIPANTJOINED_USER_PARAM, newUserName);
-      notifService.sendNotification(participant.getParticipantId(),
-          ProtocolElements.PARTICIPANTJOINED_METHOD, notifParams);
+//      notifService.sendNotification(participant.getParticipantId(),
+//          ProtocolElements.PARTICIPANTJOINED_METHOD, notifParams);
     }
     notifService.sendResponse(request, result);
   }
@@ -93,8 +95,8 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
     JsonObject params = new JsonObject();
     params.addProperty(ProtocolElements.PARTICIPANTLEFT_NAME_PARAM, userName);
     for (UserParticipant participant : remainingParticipants) {
-      notifService.sendNotification(participant.getParticipantId(),
-          ProtocolElements.PARTICIPANTLEFT_METHOD, params);
+//      notifService.sendNotification(participant.getParticipantId(),
+//          ProtocolElements.PARTICIPANTLEFT_METHOD, params);
     }
 
     notifService.sendResponse(request, new JsonObject());
@@ -128,8 +130,8 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
       if (participant.getParticipantId().equals(request.getParticipantId())) {
         continue;
       } else {
-        notifService.sendNotification(participant.getParticipantId(),
-            ProtocolElements.PARTICIPANTPUBLISHED_METHOD, params);
+//        notifService.sendNotification(participant.getParticipantId(),
+//            ProtocolElements.PARTICIPANTPUBLISHED_METHOD, params);
       }
     }
   }
@@ -151,8 +153,8 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
       if (participant.getParticipantId().equals(request.getParticipantId())) {
         continue;
       } else {
-        notifService.sendNotification(participant.getParticipantId(),
-            ProtocolElements.PARTICIPANTUNPUBLISHED_METHOD, params);
+//        notifService.sendNotification(participant.getParticipantId(),
+//            ProtocolElements.PARTICIPANTUNPUBLISHED_METHOD, params);
       }
     }
   }
@@ -179,7 +181,9 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
 
   @Override
   public void onSendMessage(ParticipantRequest request, String message, String userName,
-      String roomName, Set<UserParticipant> participants, RoomException error) {
+      String roomName, RoomException error) {
+    throw new NotImplementedException();
+    /*
     if (error != null) {
       notifService.sendErrorResponse(request, null, error);
       return;
@@ -193,8 +197,8 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
 
     for (UserParticipant participant : participants) {
       notifService.sendNotification(participant.getParticipantId(),
-          ProtocolElements.PARTICIPANTSENDMESSAGE_METHOD, params);
-    }
+//          ProtocolElements.PARTICIPANTSENDMESSAGE_METHOD, params);
+    }*/
   }
 
   @Override
@@ -212,21 +216,21 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
     JsonObject params = new JsonObject();
     params.addProperty(ProtocolElements.PARTICIPANTLEFT_NAME_PARAM, userName);
     for (UserParticipant participant : remainingParticipants) {
-      notifService.sendNotification(participant.getParticipantId(),
-          ProtocolElements.PARTICIPANTLEFT_METHOD, params);
+//      notifService.sendNotification(participant.getParticipantId(),
+//          ProtocolElements.PARTICIPANTLEFT_METHOD, params);
     }
   }
 
   @Override
   public void onParticipantEvicted(UserParticipant participant) {
-    notifService.sendNotification(participant.getParticipantId(),
-        ProtocolElements.PARTICIPANTEVICTED_METHOD, new JsonObject());
+//    notifService.sendNotification(participant.getParticipantId(),
+//        ProtocolElements.PARTICIPANTEVICTED_METHOD, new JsonObject());
   }
 
   // ------------ EVENTS FROM ROOM HANDLER -----
 
   @Override
-  public void onIceCandidate(String roomName, String participantId, String endpointName, final String streamId,
+  public void onIceCandidate(String roomName, String participantId, String participantName, String endpointName, final String streamId,
       IceCandidate candidate) {
     JsonObject params = new JsonObject();
     params.addProperty(ProtocolElements.ICECANDIDATE_EPNAME_PARAM, endpointName);
@@ -235,23 +239,32 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
         candidate.getSdpMLineIndex());
     params.addProperty(ProtocolElements.ICECANDIDATE_SDPMID_PARAM, candidate.getSdpMid());
     params.addProperty(ProtocolElements.ICECANDIDATE_CANDIDATE_PARAM, candidate.getCandidate());
-    notifService.sendNotification(participantId, ProtocolElements.ICECANDIDATE_METHOD, params);
+//    notifService.sendNotification(participantId, ProtocolElements.ICECANDIDATE_METHOD, params);
   }
 
   @Override
-  public void onPipelineError(String roomName, Set<String> participantIds, String description) {
+  public void onPipelineError(String roomName, Collection<Participant> participants, String description) {
     JsonObject notifParams = new JsonObject();
     notifParams.addProperty(ProtocolElements.MEDIAERROR_ERROR_PARAM, description);
-    for (String pid : participantIds) {
-      notifService.sendNotification(pid, ProtocolElements.MEDIAERROR_METHOD, notifParams);
+    for (Participant participant : participants) {
+//      notifService.sendNotification(participant.getId(), ProtocolElements.MEDIAERROR_METHOD, notifParams);
     }
   }
 
   @Override
-  public void onMediaElementError(String roomName, String participantId, String description) {
+  public void onMediaElementError(String roomName, String participantId, String participantName, String description) {
     JsonObject notifParams = new JsonObject();
     notifParams.addProperty(ProtocolElements.MEDIAERROR_ERROR_PARAM, description);
-    notifService.sendNotification(participantId, ProtocolElements.MEDIAERROR_METHOD, notifParams);
+//    notifService.sendNotification(participantId, ProtocolElements.MEDIAERROR_METHOD, notifParams);
   }
 
+  @Override
+  public void updateFilter(String roomName, Participant participant, String filterId,
+      String state) {
+  }
+
+  @Override
+  public String getNextFilterState(String filterId, String state) {
+    return null;
+  }
 }

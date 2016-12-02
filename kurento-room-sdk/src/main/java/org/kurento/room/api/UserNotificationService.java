@@ -75,7 +75,7 @@ public interface UserNotificationService {
    *          Object containing information that depends on the invoked method. It'd normally be a
    *          JSON element-type object.
    */
-  void sendNotification(String participantId, String method, Object params);
+  //void sendNotification(String participantId, String method, Object params);
 
   /**
    * Notifies that any information associated with the provided request should be cleaned up (the

@@ -44,8 +44,10 @@ public class RoomJsonRpcHandler extends DefaultJsonRpcHandler<JsonObject> {
 
   private static final String HANDLER_THREAD_NAME = "handler";
 
-  private JsonRpcUserControl userControl;
+  @Autowired
+  private UsernameSessionIdMapper usernameSessionIdMapper;
 
+  private JsonRpcUserControl userControl;
   private JsonRpcNotificationService notificationService;
 
   @Autowired
@@ -122,7 +124,6 @@ public class RoomJsonRpcHandler extends DefaultJsonRpcHandler<JsonObject> {
   @Override
   public final void afterConnectionClosed(Session session, String status) throws Exception {
     ParticipantRequest preq = null;
-
     try {
       ParticipantSession ps = null;
       if (session.getAttributes().containsKey(ParticipantSession.SESSION_KEY)) {
@@ -132,9 +133,19 @@ public class RoomJsonRpcHandler extends DefaultJsonRpcHandler<JsonObject> {
       log.debug("CONN_CLOSED: sessionId={}, participant in session: {}", sid, ps);
       preq = new ParticipantRequest(sid, null);
       updateThreadName(sid + "|wsclosed");
+
+      // We need to distinguish between a proper leaveRoom request and a loss of connection
       userControl.leaveRoom(null, null, preq);
+      userControl.onConnectionClosed(session);
+
       updateThreadName(HANDLER_THREAD_NAME);
     } finally {
+      // Remove the sessionId from the map
+      // NOTE: It is important that this operation is carried out after invoking onConnectionClosed,
+      // because its implementation needs to retrieve the username associated to the
+      // closing connection.
+      usernameSessionIdMapper.removeBySessionId(session.getSessionId());
+
       // Close the websocket session of the participant
       // (this is no longer done by CustomNotificationRoomHandler.onParticipantLeft()!)
       notificationService.closeSession(preq);

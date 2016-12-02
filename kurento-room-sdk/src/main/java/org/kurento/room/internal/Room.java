@@ -13,12 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package org.kurento.room.internal;
 
 import org.kurento.client.*;
 import org.kurento.room.api.RoomHandler;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.exception.RoomException.Code;
+import org.kurento.room.interfaces.IParticipant;
+import org.kurento.room.interfaces.IRoom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,12 +34,14 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
+ * IRoom (stateful) implementation.
+ *
  * @author Ivan Gracia (izanmail@gmail.com)
  * @author Micael Gallego (micael.gallego@gmail.com)
  * @author Radu Tom Vlad (rvlad@naevatec.com)
  * @since 1.0.0
  */
-public class Room {
+public class Room implements IRoom {
   public static final int ASYNC_LATCH_TIMEOUT = 30;
 
   private final static Logger log = LoggerFactory.getLogger(Room.class);
@@ -62,6 +67,8 @@ public class Room {
   private volatile boolean pipelineReleased = false;
   private boolean destroyKurentoClient;
 
+  private final ConcurrentHashMap<String, String> filterStates = new ConcurrentHashMap<>();
+
   public Room(String roomName, KurentoClient kurentoClient, RoomHandler roomHandler,
       boolean destroyKurentoClient) {
     this.name = roomName;
@@ -71,10 +78,12 @@ public class Room {
     log.debug("New ROOM instance, named '{}'", roomName);
   }
 
+  @Override
   public String getName() {
     return name;
   }
 
+  @Override
   public MediaPipeline getPipeline() {
     // The pipeline creation process is not triggered when we do not have
     // a KMS provider, so if we wait on pipelineLatch we would loop indefinitely
@@ -90,7 +99,8 @@ public class Room {
     return this.pipeline;
   }
 
-  public void join(String participantId, String userName, boolean dataChannels,
+  @Override
+  public synchronized void join(String participantId, String userName, boolean dataChannels,
       boolean webParticipant) throws RoomException {
 
     checkClosed();
@@ -100,8 +110,8 @@ public class Room {
     }
     for (Participant p : participants.values()) {
       if (p.getName().equals(userName)) {
-        throw new RoomException(Code.EXISTING_USER_IN_ROOM_ERROR_CODE, "User '" + userName
-            + "' already exists in room '" + name + "'");
+        throw new RoomException(Code.EXISTING_USER_IN_ROOM_ERROR_CODE,
+            "User '" + userName + "' already exists in room '" + name + "'");
       }
     }
 
@@ -114,10 +124,17 @@ public class Room {
         dataChannels, webParticipant));
     activePublishersRegisterCount.put(participantId, new AtomicInteger(0));
 
+    filterStates.forEach((filterId, state) -> {
+      log.info("Adding filter {}", filterId);
+      // TODO: Fix
+      //roomHandler.updateFilter(name, participant, filterId, state);
+    });
+
     log.info("ROOM {}: Added participant {}", name, userName);
   }
 
-  public void newPublisher(Participant participant, final String streamId) {
+  @Override
+  public void newPublisher(IParticipant participant, final String streamId) {
     registerPublisher(participant.getId());
 
     // pre-load endpoints to recv video from the new publisher
@@ -132,7 +149,8 @@ public class Room {
         participants.values(), participant.getName());
   }
 
-  public void cancelPublisher(Participant participant, final String streamId) {
+  @Override
+  public void cancelPublisher(IParticipant participant, final String streamId) {
     deregisterPublisher(participant.getId());
 
     // cancel recv video from this publisher
@@ -148,15 +166,18 @@ public class Room {
 
   }
 
+  @Override
   public void leave(String participantId) throws RoomException {
 
     checkClosed();
 
     Participant participant = participants.get(participantId);
     if (participant == null) {
-      throw new RoomException(Code.USER_NOT_FOUND_ERROR_CODE, "User #" + participantId
-          + " not found in room '" + name + "'");
+      throw new RoomException(Code.USER_NOT_FOUND_ERROR_CODE,
+          "User #" + participantId + " not found in room '" + name + "'");
     }
+    participant.releaseAllFilters();
+
     log.info("PARTICIPANT {}: Leaving room {}", participant.getName(), this.name);
     for (String streamId : participant.getPublisherStreamIds()) {
       if (participant.isStreaming(streamId)) {
@@ -167,13 +188,15 @@ public class Room {
     participant.close();
   }
 
-  public Collection<Participant> getParticipants() {
+  @Override
+  public Collection<? extends IParticipant> getParticipants() {
 
     checkClosed();
 
     return participants.values();
   }
 
+  @Override
   public Set<String> getParticipantIds() {
 
     checkClosed();
@@ -181,6 +204,7 @@ public class Room {
     return participants.keySet();
   }
 
+  @Override
   public Participant getParticipant(String participantId) {
 
     checkClosed();
@@ -188,6 +212,7 @@ public class Room {
     return participants.get(participantId);
   }
 
+  @Override
   public Participant getParticipantByName(String userName) {
 
     checkClosed();
@@ -201,6 +226,7 @@ public class Room {
     return null;
   }
 
+  @Override
   public void close() {
     if (!closed) {
 
@@ -228,14 +254,17 @@ public class Room {
     }
   }
 
-  public void sendIceCandidate(String participantId, String endpointName, final String streamId, IceCandidate candidate) {
-    this.roomHandler.onIceCandidate(name, participantId, endpointName, streamId, candidate);
+  @Override
+  public void sendIceCandidate(String participantId, String participantName, String endpointName, final String streamId, IceCandidate candidate) {
+    this.roomHandler.onIceCandidate(name, participantId, participantName, endpointName, streamId, candidate);
   }
 
-  public void sendMediaError(String participantId, String description) {
-    this.roomHandler.onMediaElementError(name, participantId, description);
+  @Override
+  public void sendMediaError(String participantId, String participantName, String description) {
+    this.roomHandler.onMediaElementError(name, participantId, participantName, description);
   }
 
+  @Override
   public boolean isClosed() {
     return closed;
   }
@@ -259,6 +288,7 @@ public class Room {
     }
   }
 
+  @Override
   public int getActivePublishers() {
     int result = 0;
 
@@ -275,10 +305,12 @@ public class Room {
     return result;
   }
 
+  @Override
   public void registerPublisher(final String participantId) {
     this.activePublishersRegisterCount.get(participantId).incrementAndGet();
   }
 
+  @Override
   public void deregisterPublisher(final String participantId) {
     this.activePublishersRegisterCount.get(participantId).decrementAndGet();
   }
@@ -320,10 +352,11 @@ public class Room {
       pipeline.addErrorListener(new EventListener<ErrorEvent>() {
         @Override
         public void onEvent(ErrorEvent event) {
-          String desc = event.getType() + ": " + event.getDescription() + "(errCode="
-              + event.getErrorCode() + ")";
+          String desc =
+              event.getType() + ": " + event.getDescription() + "(errCode=" + event.getErrorCode()
+                  + ")";
           log.warn("ROOM {}: Pipeline error encountered: {}", name, desc);
-          roomHandler.onPipelineError(name, getParticipantIds(), desc);
+          roomHandler.onPipelineError(name, (Collection<Participant>)getParticipants(), desc);
         }
       });
     }
@@ -348,6 +381,18 @@ public class Room {
           pipelineReleased = true;
         }
       });
+    }
+  }
+
+  @Override
+  public synchronized void updateFilter(String filterId) {
+    String state = filterStates.get(filterId);
+    String newState = roomHandler.getNextFilterState(filterId, state);
+
+    filterStates.put(filterId, newState);
+
+    for (Participant participant : participants.values()) {
+      roomHandler.updateFilter(getName(), participant, filterId, newState);
     }
   }
 }
