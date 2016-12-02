@@ -31,6 +31,7 @@ import org.kurento.room.internal.Participant;
 import org.kurento.room.internal.Room;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PreDestroy;
@@ -50,26 +51,21 @@ import java.util.concurrent.ConcurrentMap;
 public class RoomManager implements IRoomManager {
   private final Logger log = LoggerFactory.getLogger(RoomManager.class);
 
+  private final ConcurrentMap<String, Room> rooms = new ConcurrentHashMap<String, Room>();
+  private volatile boolean closed = false;
+
+  @Autowired
   private RoomHandler roomHandler;
 
   // Note: This can be null if we don't want to use a KMS!
+  @Autowired
   private KurentoClientProvider kcProvider;
-
-  private final ConcurrentMap<String, Room> rooms = new ConcurrentHashMap<String, Room>();
-
-  private volatile boolean closed = false;
 
   /**
    * Provides an instance of the room manager by setting a room handler and the
    * {@link KurentoClient} provider.
-   *
-   * @param roomHandler the room handler implementation
-   * @param kcProvider  enables the manager to obtain Kurento Client instances
    */
-  public RoomManager(RoomHandler roomHandler, KurentoClientProvider kcProvider) {
-    super();
-    this.roomHandler = roomHandler;
-    this.kcProvider = kcProvider;
+  public RoomManager() {
   }
 
   @Override
