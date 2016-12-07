@@ -26,6 +26,7 @@ import org.kurento.room.endpoint.SdpType;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.exception.RoomException.Code;
 import org.kurento.room.interfaces.IParticipant;
+import org.kurento.room.interfaces.IRoom;
 import org.kurento.room.interfaces.IRoomManager;
 import org.kurento.room.internal.Participant;
 import org.kurento.room.internal.Room;
@@ -47,7 +48,7 @@ import java.util.concurrent.ConcurrentMap;
  *
  * @author <a href="mailto:rvlad@naevatec.com">Radu Tom Vlad</a>
  */
-@Component
+// @Component
 public class RoomManager implements IRoomManager {
   private final Logger log = LoggerFactory.getLogger(RoomManager.class);
 
@@ -608,7 +609,11 @@ public class RoomManager implements IRoomManager {
   @Override
   public void updateFilter(String roomId, String filterId) {
     Room room = rooms.get(roomId);
-
     room.updateFilter(filterId);
+  }
+
+  @Override
+  public IRoom getRoomByName(String name) {
+    return rooms.get(name);
   }
 }

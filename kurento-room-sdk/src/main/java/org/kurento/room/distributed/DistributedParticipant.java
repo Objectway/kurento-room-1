@@ -1,95 +1,88 @@
-/*
- * (C) Copyright 2014 Kurento (http://kurento.org/)
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+package org.kurento.room.distributed;
 
-package org.kurento.room.internal;
-
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.IAtomicLong;
+import com.hazelcast.core.ICountDownLatch;
+import com.hazelcast.core.IMap;
 import org.kurento.client.*;
 import org.kurento.client.internal.server.KurentoServerException;
 import org.kurento.room.api.MutedMediaType;
-import org.kurento.room.distributed.CountDownLatchJava;
-import org.kurento.room.endpoint.PublisherEndpoint;
+import org.kurento.room.distributed.interfaces.IChangeListener;
+import org.kurento.room.distributed.model.endpoint.DistributedPublisherEndpoint;
+import org.kurento.room.distributed.model.endpoint.DistributedSubscriberEndpoint;
 import org.kurento.room.endpoint.SdpType;
 import org.kurento.room.endpoint.SubscriberEndpoint;
 import org.kurento.room.exception.RoomException;
-import org.kurento.room.exception.RoomException.Code;
 import org.kurento.room.interfaces.IParticipant;
 import org.kurento.room.interfaces.IPublisherEndpoint;
+import org.kurento.room.interfaces.IRoom;
+import org.kurento.room.interfaces.ISubscriberEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
-import java.util.Collection;
-import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
+import javax.annotation.PostConstruct;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
- * IParticipant (stateful) implementation.
- *
- * @author Ivan Gracia (izanmail@gmail.com)
- * @author Micael Gallego (micael.gallego@gmail.com)
- * @author Radu Tom Vlad (rvlad@naevatec.com)
- * @since 1.0.0
+ * Created by sturiale on 05/12/16.
  */
-public class Participant implements IParticipant {
+@Component
+@Scope("prototype")
+public class DistributedParticipant implements IParticipant {
+    private static final Logger log = LoggerFactory.getLogger(DistributedParticipant.class);
+    @Autowired
+    private HazelcastInstance hazelcastInstance;
 
-    private static final Logger log = LoggerFactory.getLogger(Participant.class);
+    @Autowired
+    private DistributedNamingService distributedNamingService;
 
     private String id;
     private String name;
     private boolean web = false;
     private boolean dataChannels = false;
-
-    private final Room room;
-    private final MediaPipeline pipeline;
-
-    // Publisher (streamId)
-    private final ConcurrentHashMap<String, PublisherEndpoint> publishers = new ConcurrentHashMap<String, PublisherEndpoint>();
-    private final ConcurrentHashMap<String, CountDownLatch> publisherLatches = new ConcurrentHashMap<String, CountDownLatch>();
-
-    // Warning: the mere presence of a stream in publishers does NOT mean that the stream is effectively published
-    // However, when the stream is unpublished, the entry is removed both from publishers and publishersStreamingFlags.
-    private final ConcurrentHashMap<String, Boolean> publishersStreamingFlags = new ConcurrentHashMap<String, Boolean>();
-
-    // Subscribers
-    private final ConcurrentMap<String, SubscriberEndpoint> subscribers = new ConcurrentHashMap<String, SubscriberEndpoint>();
-    private final ConcurrentMap<String, Filter> filters = new ConcurrentHashMap<>();
-
+    private final DistributedRoom room;
     private volatile boolean closed;
+    private IAtomicLong registerCount;
+    private IMap<String, DistributedPublisherEndpoint> publishers;
+    private IMap<String, DistributedSubscriberEndpoint> subscribers;
 
-    public Participant(String id, String name, Room room, MediaPipeline pipeline, boolean dataChannels, boolean web) {
+    // Listeners
+    private IChangeListener<DistributedParticipant> listener;
+
+    private IMap<String, ICountDownLatch> publisherLatches;
+    private IMap<String, Boolean> publishersStreamingFlags;
+
+    @PostConstruct
+    public void init() {
+        publishers = hazelcastInstance.getMap(distributedNamingService.getName("participant-publishers" + name + "-" + room.getName()));
+        subscribers = hazelcastInstance.getMap(distributedNamingService.getName("participant-subscribers" + name + "-" + room.getName()));
+        registerCount = hazelcastInstance.getAtomicLong(distributedNamingService.getName("participant-register-count" + name + "-" + room.getName()));
+        publisherLatches = hazelcastInstance.getMap(distributedNamingService.getName("publisherLatches-" + name + "-" + room.getName()));
+        publishersStreamingFlags = hazelcastInstance.getMap(distributedNamingService.getName("publishersStreamingFlags-" + name + "-" + room.getName()));
+    }
+
+    public DistributedParticipant(String id, String name, DistributedRoom room, boolean dataChannels, boolean web) {
         this.id = id;
         this.name = name;
         this.web = web;
         this.dataChannels = dataChannels;
-        this.pipeline = pipeline;
         this.room = room;
     }
 
     @Override
-    public void createPublishingEndpoint(final String streamId) {
+    public void createPublishingEndpoint(String streamId) {
         final IPublisherEndpoint publisherEndpoint = getNewOrExistingPublisher(name, streamId);
-        final CountDownLatch publisherLatch = publisherLatches.get(streamId);
-        publisherEndpoint.createEndpoint(new CountDownLatchJava(publisherLatch));
+        final ICountDownLatch publisherLatch = publisherLatches.get(streamId);
+        publisherEndpoint.createEndpoint(new CountDownLatchHz(publisherLatch));
 
         if (getPublisher(streamId).getEndpoint() == null) {
-            throw new RoomException(Code.MEDIA_ENDPOINT_ERROR_CODE, "Unable to create publisher endpoint");
+            throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE, "Unable to create publisher endpoint");
         }
     }
 
@@ -104,11 +97,11 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public void shapePublisherMedia(MediaElement element, MediaType type, final String streamId) {
-        if (!publishers.contains(streamId)) {
-            throw new RoomException(Code.MEDIA_ENDPOINT_ERROR_CODE, "Unable to create publisher endpoint, streamId " + streamId + " not found");
+    public void shapePublisherMedia(MediaElement element, MediaType type, String streamId) {
+        if (!publishers.containsKey(streamId)) {
+            throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE, "Unable to create publisher endpoint, streamId " + streamId + " not found");
         }
-        final PublisherEndpoint publisher = publishers.get(streamId);
+        final IPublisherEndpoint publisher = publishers.get(streamId);
         if (type == null) {
             publisher.apply(element);
         } else {
@@ -117,89 +110,60 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public synchronized Filter getFilterElement(String id) {
-        return filters.get(id);
+    public Filter getFilterElement(String id) {
+        throw new NotImplementedException();
     }
 
     @Override
-    public synchronized void addFilterElement(String id, Filter filter) {
-        filters.put(id, filter);
-        // TODO: fix
-        //shapePublisherMedia(filter, null);
+    public void addFilterElement(String id, Filter filter) {
+        throw new NotImplementedException();
     }
 
     @Override
-    public synchronized void disableFilterelement(String filterID, boolean releaseElement) {
-        Filter filter = getFilterElement(filterID);
-
-        if (filter != null) {
-            try {
-                // TODO: fix
-                // publisher.revert(filter, releaseElement);
-            } catch (RoomException e) {
-                //Ignore error
-            }
-        }
+    public void disableFilterelement(String filterID, boolean releaseElement) {
+        throw new NotImplementedException();
     }
 
     @Override
-    public synchronized void enableFilterelement(String filterID) {
-        Filter filter = getFilterElement(filterID);
-
-        if (filter != null) {
-            try {
-                // TODO: fix
-                //publisher.apply(filter);
-            } catch (RoomException e) {
-                // Ignore exception if element is already used
-            }
-        }
+    public void enableFilterelement(String filterID) {
+        throw new NotImplementedException();
     }
 
     @Override
-    public synchronized void removeFilterElement(String id) {
-        Filter filter = getFilterElement(id);
-
-        filters.remove(id);
-        if (filter != null) {
-            // TODO: fix
-            //publisher.revert(filter);
-        }
+    public void removeFilterElement(String id) {
+        throw new NotImplementedException();
     }
 
     @Override
-    public synchronized void releaseAllFilters() {
-
-        // Check this, mutable array?
-
-        filters.forEach((s, filter) -> removeFilterElement(s));
+    public void releaseAllFilters() {
+        throw new NotImplementedException();
     }
 
     @Override
-    public IPublisherEndpoint getPublisher(final String streamId) {
-        final CountDownLatch endPointLatch = publisherLatches.get(streamId);
+    public IPublisherEndpoint getPublisher(String streamId) {
+        final ICountDownLatch endPointLatch = publisherLatches.get(streamId);
         try {
-            if (!endPointLatch.await(Room.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS)) {
+            if (!endPointLatch.await(DistributedRoom.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS)) {
                 throw new RoomException(
-                        Code.MEDIA_ENDPOINT_ERROR_CODE,
+                        RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
                         "Timeout reached while waiting for publisher endpoint to be ready");
             }
         } catch (InterruptedException e) {
             throw new RoomException(
-                    Code.MEDIA_ENDPOINT_ERROR_CODE,
+                    RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
                     "Interrupted while waiting for publisher endpoint to be ready: " + e.getMessage());
         }
         return publishers.get(streamId);
     }
 
     @Override
-    public Room getRoom() {
+    public IRoom getRoom() {
         return this.room;
     }
 
     @Override
     public MediaPipeline getPipeline() {
-        return pipeline;
+        return this.room.getPipeline();
     }
 
     @Override
@@ -208,7 +172,7 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public boolean isStreaming(final String streamId) {
+    public boolean isStreaming(String streamId) {
         final Boolean streaming = publishersStreamingFlags.get(streamId);
         return streaming != null && streaming.booleanValue() == true;
     }
@@ -220,7 +184,7 @@ public class Participant implements IParticipant {
 
     @Override
     public boolean isSubscribed() {
-        for (SubscriberEndpoint se : subscribers.values()) {
+        for (DistributedSubscriberEndpoint se : subscribers.values()) {
             if (se.isConnectedToPublisher()) {
                 return true;
             }
@@ -231,7 +195,7 @@ public class Participant implements IParticipant {
     @Override
     public Set<String> getConnectedSubscribedEndpoints() {
         Set<String> subscribedToSet = new HashSet<String>();
-        for (SubscriberEndpoint se : subscribers.values()) {
+        for (DistributedSubscriberEndpoint se : subscribers.values()) {
             if (se.isConnectedToPublisher()) {
                 subscribedToSet.add(se.getEndpointName());
             }
@@ -240,7 +204,7 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public String preparePublishConnection(final String streamId) {
+    public String preparePublishConnection(String streamId) {
         log.info("USER {}: Request to publish video in room {} by "
                 + "initiating connection from server", this.name, this.room.getName());
 
@@ -253,8 +217,7 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public String publishToRoom(final String streamId, final String streamType, SdpType sdpType, String sdpString, boolean doLoopback,
-                                MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType) {
+    public String publishToRoom(String streamId, String streamType, SdpType sdpType, String sdpString, boolean doLoopback, MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType) {
         log.info("USER {}: Request to publish video in room {} (sdp type {})", this.name,
                 this.room.getName(), sdpType);
         log.trace("USER {}: Publishing Sdp ({}) is {}", this.name, sdpType, sdpString);
@@ -272,18 +235,14 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public void unpublishMedia(final String streamId) {
+    public void unpublishMedia(String streamId) {
         log.debug("PARTICIPANT {}: unpublishing media stream from room {}", this.name,
                 this.room.getName());
         releasePublisherEndpoint(streamId);
-
-    /*this.publisher = new PublisherEndpoint(web, dataChannels, this, name, pipeline);
-    log.debug("PARTICIPANT {}: released publisher endpoint and left it "
-        + "initialized (ready for future streaming)", this.name);*/
     }
 
     @Override
-    public String receiveMediaFrom(IParticipant sender, final String streamId, String sdpOffer) {
+    public String receiveMediaFrom(IParticipant sender, String streamId, String sdpOffer) {
         final String senderName = sender.getName();
 
         log.info("USER {}: Request to receive media from {} in room {}", this.name, senderName,
@@ -292,7 +251,7 @@ public class Participant implements IParticipant {
 
         if (senderName.equals(this.name)) {
             log.warn("PARTICIPANT {}: trying to configure loopback by subscribing", this.name);
-            throw new RoomException(Code.USER_NOT_STREAMING_ERROR_CODE,
+            throw new RoomException(RoomException.Code.USER_NOT_STREAMING_ERROR_CODE,
                     "Can loopback only when publishing media");
         }
 
@@ -304,18 +263,18 @@ public class Participant implements IParticipant {
 
         log.debug("PARTICIPANT {}: Creating a subscriber endpoint to user {}", this.name, senderName);
 
-        SubscriberEndpoint subscriber = getNewOrExistingSubscriber(senderName, streamId);
+        ISubscriberEndpoint subscriber = getNewOrExistingSubscriber(senderName, streamId);
 
         try {
             CountDownLatch subscriberLatch = new CountDownLatch(1);
             SdpEndpoint oldMediaEndpoint = subscriber.createEndpoint(new CountDownLatchJava(subscriberLatch));
             try {
-                if (!subscriberLatch.await(Room.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS)) {
-                    throw new RoomException(Code.MEDIA_ENDPOINT_ERROR_CODE,
+                if (!subscriberLatch.await(DistributedRoom.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS)) {
+                    throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
                             "Timeout reached when creating subscriber endpoint");
                 }
             } catch (InterruptedException e) {
-                throw new RoomException(Code.MEDIA_ENDPOINT_ERROR_CODE,
+                throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
                         "Interrupted when creating subscriber endpoint: " + e.getMessage());
             }
             if (oldMediaEndpoint != null) {
@@ -324,7 +283,7 @@ public class Participant implements IParticipant {
                 return null;
             }
             if (subscriber.getEndpoint() == null) {
-                throw new RoomException(Code.MEDIA_ENDPOINT_ERROR_CODE,
+                throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
                         "Unable to create subscriber endpoint");
             }
         } catch (RoomException e) {
@@ -334,7 +293,7 @@ public class Participant implements IParticipant {
 
         log.debug("PARTICIPANT {}: Created subscriber endpoint for user {} with streamId {}", this.name, senderName, streamId);
         try {
-            String sdpAnswer = subscriber.subscribe(sdpOffer, (PublisherEndpoint) sender.getPublisher(streamId));
+            String sdpAnswer = subscriber.subscribe(sdpOffer, (IPublisherEndpoint) sender.getPublisher(streamId));
             log.trace("USER {}: Subscribing SdpAnswer is {} with streamId {}", this.name, sdpAnswer, streamId);
             log.info("USER {}: Is now receiving video from {} in room {} with streamId {}", this.name, senderName,
                     this.room.getName(), streamId);
@@ -362,10 +321,10 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public void cancelReceivingMedia(String senderName, final String streamId) {
+    public void cancelReceivingMedia(String senderName, String streamId) {
         senderName = senderName + "_" + streamId;
         log.debug("PARTICIPANT {}: cancel receiving media from {}", this.name, senderName);
-        SubscriberEndpoint subscriberEndpoint = subscribers.remove(senderName);
+        DistributedSubscriberEndpoint subscriberEndpoint = subscribers.remove(senderName);
         if (subscriberEndpoint == null || subscriberEndpoint.getEndpoint() == null) {
             log.warn("PARTICIPANT {}: Trying to cancel receiving video from user {}. "
                     + "But there is no such subscriber endpoint.", this.name, senderName);
@@ -378,15 +337,15 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public void mutePublishedMedia(MutedMediaType muteType, final String streamId) {
+    public void mutePublishedMedia(MutedMediaType muteType, String streamId) {
         if (muteType == null) {
-            throw new RoomException(Code.MEDIA_MUTE_ERROR_CODE, "Mute type cannot be null");
+            throw new RoomException(RoomException.Code.MEDIA_MUTE_ERROR_CODE, "Mute type cannot be null");
         }
         this.getPublisher(streamId).mute(muteType);
     }
 
     @Override
-    public void unmutePublishedMedia(final String streamId) {
+    public void unmutePublishedMedia(String streamId) {
         if (this.getPublisher(streamId).getMuteType() == null) {
             log.warn("PARTICIPANT {}: Trying to unmute published media. " + "But media is not muted.",
                     this.name);
@@ -396,12 +355,12 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public void muteSubscribedMedia(IParticipant sender, final String streamId, MutedMediaType muteType) {
+    public void muteSubscribedMedia(IParticipant sender, String streamId, MutedMediaType muteType) {
         if (muteType == null) {
-            throw new RoomException(Code.MEDIA_MUTE_ERROR_CODE, "Mute type cannot be null");
+            throw new RoomException(RoomException.Code.MEDIA_MUTE_ERROR_CODE, "Mute type cannot be null");
         }
         String senderName = sender.getName() + "_" + streamId;
-        SubscriberEndpoint subscriberEndpoint = subscribers.get(senderName);
+        DistributedSubscriberEndpoint subscriberEndpoint = subscribers.get(senderName);
         if (subscriberEndpoint == null || subscriberEndpoint.getEndpoint() == null) {
             log.warn("PARTICIPANT {}: Trying to mute incoming media from user {}. "
                     + "But there is no such subscriber endpoint.", this.name, senderName);
@@ -413,9 +372,9 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public void unmuteSubscribedMedia(IParticipant sender, final String streamId) {
+    public void unmuteSubscribedMedia(IParticipant sender, String streamId) {
         String senderName = sender.getName() + "_" + streamId;
-        SubscriberEndpoint subscriberEndpoint = subscribers.get(senderName);
+        DistributedSubscriberEndpoint subscriberEndpoint = subscribers.get(senderName);
         if (subscriberEndpoint == null || subscriberEndpoint.getEndpoint() == null) {
             log.warn("PARTICIPANT {}: Trying to unmute incoming media from user {}. "
                     + "But there is no such subscriber endpoint.", this.name, senderName);
@@ -440,7 +399,7 @@ public class Participant implements IParticipant {
         }
         this.closed = true;
         for (String remoteParticipantName : subscribers.keySet()) {
-            SubscriberEndpoint subscriber = this.subscribers.get(remoteParticipantName);
+            DistributedSubscriberEndpoint subscriber = this.subscribers.get(remoteParticipantName);
             if (subscriber != null && subscriber.getEndpoint() != null) {
                 releaseSubscriberEndpoint(remoteParticipantName, subscriber);
                 log.debug("PARTICIPANT {}: Released subscriber endpoint to {}", this.name,
@@ -457,10 +416,10 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public SubscriberEndpoint getNewOrExistingSubscriber(String remoteName, final String streamId) {
+    public ISubscriberEndpoint getNewOrExistingSubscriber(String remoteName, String streamId) {
         remoteName = remoteName + "_" + streamId;
-        SubscriberEndpoint sendingEndpoint = new SubscriberEndpoint(web, this, remoteName, pipeline);
-        SubscriberEndpoint existingSendingEndpoint =
+        DistributedSubscriberEndpoint sendingEndpoint = new DistributedSubscriberEndpoint(web, this, remoteName, this.room.getPipeline(), this.room.getKmsUri());
+        DistributedSubscriberEndpoint existingSendingEndpoint =
                 this.subscribers.putIfAbsent(remoteName, sendingEndpoint);
         if (existingSendingEndpoint != null) {
             sendingEndpoint = existingSendingEndpoint;
@@ -473,10 +432,9 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public IPublisherEndpoint getNewOrExistingPublisher(final String endpointName, final String streamId) {
-
-        PublisherEndpoint publisherEndpoint = new PublisherEndpoint(web, dataChannels, this, endpointName + "_" + streamId, pipeline);
-        PublisherEndpoint existingPublisherEndpoint = publishers.putIfAbsent(streamId, publisherEndpoint);
+    public IPublisherEndpoint getNewOrExistingPublisher(String endpointName, String streamId) {
+        DistributedPublisherEndpoint publisherEndpoint = new DistributedPublisherEndpoint(web, dataChannels, this, endpointName + "_" + streamId, room.getPipeline(), room.getKmsUri());
+        DistributedPublisherEndpoint existingPublisherEndpoint = publishers.putIfAbsent(streamId, publisherEndpoint);
 
         if (existingPublisherEndpoint != null) {
             publisherEndpoint = existingPublisherEndpoint;
@@ -486,10 +444,11 @@ public class Participant implements IParticipant {
             log.debug("PARTICIPANT {}: New publisher endpoint to user {} with streamId {}", this.name, endpointName, streamId);
 
             // The publisher is not streaming yet (only when publishRoom is called)
-            publisherLatches.putIfAbsent(streamId, new CountDownLatch(1));
+            ICountDownLatch countDownLatch = hazelcastInstance.getCountDownLatch(distributedNamingService.getName("publisherLatch" + streamId + "-" + name + "-" + room.getName()));
+            publisherLatches.putIfAbsent(streamId, countDownLatch);
             publishersStreamingFlags.putIfAbsent(streamId, false);
 
-            for (Participant other : (Collection<Participant>)room.getParticipants()) {
+            for (DistributedParticipant other : (Collection<DistributedParticipant>) room.getParticipants()) {
                 if (!other.getName().equals(this.name)) {
                     for (String otherStreamId : other.publishers.keySet()) {
                         getNewOrExistingSubscriber(other.getName(), otherStreamId);
@@ -511,7 +470,7 @@ public class Participant implements IParticipant {
     }
 
     @Override
-    public void sendIceCandidate(String endpointName, final String streamId, IceCandidate candidate) {
+    public void sendIceCandidate(String endpointName, String streamId, IceCandidate candidate) {
         room.sendIceCandidate(id, name, endpointName, streamId, candidate);
     }
 
@@ -524,7 +483,7 @@ public class Participant implements IParticipant {
     }
 
     private void releasePublisherEndpoint(final String streamId) {
-        final PublisherEndpoint publisher = publishers.get(streamId);
+        final IPublisherEndpoint publisher = publishers.get(streamId);
         if (publisher != null && publisher.getEndpoint() != null) {
             publisher.unregisterErrorListeners();
             for (MediaElement el : publisher.getMediaElements()) {
@@ -540,7 +499,7 @@ public class Participant implements IParticipant {
         }
     }
 
-    private void releaseSubscriberEndpoint(String senderName, SubscriberEndpoint subscriber) {
+    private void releaseSubscriberEndpoint(String senderName, ISubscriberEndpoint subscriber) {
         if (subscriber != null) {
             subscriber.unregisterErrorListeners();
             releaseElement(senderName, subscriber.getEndpoint());
@@ -557,13 +516,13 @@ public class Participant implements IParticipant {
                 @Override
                 public void onSuccess(Void result) throws Exception {
                     log.debug("PARTICIPANT {}: Released successfully media element #{} for {}",
-                            Participant.this.name, eid, senderName);
+                            DistributedParticipant.this.name, eid, senderName);
                 }
 
                 @Override
                 public void onError(Throwable cause) throws Exception {
                     log.warn("PARTICIPANT {}: Could not release media element #{} for {}",
-                            Participant.this.name, eid, senderName, cause);
+                            DistributedParticipant.this.name, eid, senderName, cause);
                 }
             });
         } catch (Exception e) {
@@ -574,7 +533,7 @@ public class Participant implements IParticipant {
 
     @Override
     public Enumeration<String> getPublisherStreamIds() {
-        return publishers.keys();
+        return Collections.enumeration(publishers.keySet());
     }
 
     @Override
@@ -599,10 +558,10 @@ public class Participant implements IParticipant {
         if (obj == null) {
             return false;
         }
-        if (!(obj instanceof Participant)) {
+        if (!(obj instanceof IParticipant)) {
             return false;
         }
-        Participant other = (Participant) obj;
+        DistributedParticipant other = (DistributedParticipant) obj;
         if (id == null) {
             if (other.id != null) {
                 return false;
@@ -618,5 +577,38 @@ public class Participant implements IParticipant {
             return false;
         }
         return true;
+    }
+
+    public boolean isWeb() {
+        return web;
+    }
+
+    public void setWeb(boolean web) {
+        this.web = web;
+    }
+
+    public boolean isDataChannels() {
+        return dataChannels;
+    }
+
+    public void setDataChannels(boolean dataChannels) {
+        this.dataChannels = dataChannels;
+    }
+
+    public void setListener(IChangeListener<DistributedParticipant> listener) {
+        this.listener = listener;
+    }
+
+    public String getStreamIdFromPublisher(DistributedPublisherEndpoint publisherEndpoint) {
+        for (Map.Entry<String, DistributedPublisherEndpoint> entry : publishers.entrySet()) {
+            if (Objects.equals(publisherEndpoint, entry.getValue())) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    public IAtomicLong getRegisterCount() {
+        return registerCount;
     }
 }

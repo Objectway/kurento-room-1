@@ -6,6 +6,7 @@ import org.kurento.room.endpoint.PublisherEndpoint;
 import org.kurento.room.endpoint.SdpType;
 import org.kurento.room.endpoint.SubscriberEndpoint;
 
+import java.util.Enumeration;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -23,7 +24,7 @@ public interface IParticipant {
   void enableFilterelement(String filterID);
   void removeFilterElement(String id);
   void releaseAllFilters();
-  PublisherEndpoint getPublisher(String streamId);
+  IPublisherEndpoint getPublisher(String streamId);
   IRoom getRoom();
   MediaPipeline getPipeline();
   boolean isClosed();
@@ -57,10 +58,10 @@ public interface IParticipant {
    * @param remoteName name of another user
    * @return the endpoint instance
    */
-  SubscriberEndpoint getNewOrExistingSubscriber(String remoteName, String streamId);
-  PublisherEndpoint getNewOrExistingPublisher(String endpointName, String streamId);
+  ISubscriberEndpoint getNewOrExistingSubscriber(String remoteName, String streamId);
+  IPublisherEndpoint getNewOrExistingPublisher(String endpointName, String streamId);
   void addIceCandidate(String endpointName, String streamId, IceCandidate iceCandidate);
   void sendIceCandidate(String endpointName, String streamId, IceCandidate candidate);
   void sendMediaError(ErrorEvent event);
-  ConcurrentHashMap.KeySetView<String, PublisherEndpoint> getPublisherStreamIds();
+  Enumeration<String> getPublisherStreamIds();
 }

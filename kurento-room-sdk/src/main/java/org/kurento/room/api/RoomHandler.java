@@ -20,6 +20,7 @@ import java.util.Collection;
 import java.util.Set;
 
 import org.kurento.client.IceCandidate;
+import org.kurento.room.interfaces.IParticipant;
 import org.kurento.room.internal.Participant;
 
 /**
@@ -73,7 +74,7 @@ public interface RoomHandler {
    * @param errorDescription
    *          description of the error
    */
-  void onPipelineError(String roomName, Collection<Participant> participants, String errorDescription);
+  void onPipelineError(String roomName, Collection<IParticipant> participants, String errorDescription);
 
     /**
      * Called when a new participant joins the conference and there are filters configured
