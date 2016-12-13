@@ -4,11 +4,12 @@ package org.kurento.room.distributed.model.endpoint;
 import org.kurento.client.*;
 import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.distributed.DistributedParticipant;
-import org.kurento.room.distributed.interfaces.ICountDownLatchWrapper;
+import org.kurento.room.distributed.interfaces.IChangeListener;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.endpoint.SdpType;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IPublisherEndpoint;
+import org.kurento.room.interfaces.IRoomManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
@@ -16,7 +17,6 @@ import org.springframework.stereotype.Component;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.util.Collection;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.Lock;
 
 /**
@@ -40,8 +40,8 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
 
 
     public DistributedPublisherEndpoint(boolean web, boolean dataChannels, DistributedParticipant owner,
-                                        String endpointName, MediaPipeline pipeline, String kmsUrl) {
-        super(web, dataChannels, owner, endpointName, pipeline, log, kmsUrl);
+                                        String endpointName, MediaPipeline pipeline, String kmsUrl, String streamId) {
+        super(web, dataChannels, owner, endpointName, pipeline, log, kmsUrl, streamId);
     }
 
 
@@ -49,6 +49,7 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
                                         boolean dataChannels,
                                         String endpointName,
                                         String kmsUrl,
+                                        String streamId,
                                         KurentoClient kurentoClient,
                                         DistributedRemoteObject webEndpointInfo,
                                         DistributedRemoteObject rtpEndpointInfo,
@@ -58,8 +59,9 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
                                         String participantId,
                                         MutedMediaType muteType,
                                         boolean connected,
-                                        Long callStreamId) {
-        super(web, dataChannels, endpointName, kmsUrl, kurentoClient, webEndpointInfo, rtpEndpointInfo, roomName, participantId, muteType, log);
+                                        Long callStreamId,
+                                        IRoomManager roomManager) {
+        super(web, dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo, rtpEndpointInfo, roomName, participantId, muteType, roomManager, log);
         this.connected = connected;
         this.callStreamId = callStreamId;
         try {
@@ -70,7 +72,7 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
             if (passThrouInfo != null) {
                 final Class<KurentoObject> clazz = (Class<KurentoObject>) Class.forName(passThrouInfo.getClassName());
                 this.passThru = (PassThrough) kurentoClient.getById(passThrouInfo.getObjectRef(), clazz);
-                passThruSubscription = registerElemErrListener(passThru);
+//                passThruSubscription = registerElemErrListener(passThru);
             }
 
             // We always have a KurentoObject as a result, even if it does not exist in the KMS
@@ -126,8 +128,8 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
     }
 
     @Override
-    protected void internalEndpointInitialization(final ICountDownLatchWrapper endpointLatch) {
-        super.internalEndpointInitialization(endpointLatch);
+    protected void internalEndpointInitialization() {
+        super.internalEndpointInitialization();
         passThru = new PassThrough.Builder(getPipeline()).build();
         passThruSubscription = registerElemErrListener(passThru);
     }
@@ -438,4 +440,5 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
     public RecorderEndpoint getRecorderEndpoint() {
         return recorderEndpoint;
     }
+
 }

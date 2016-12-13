@@ -4,10 +4,12 @@ import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.StreamSerializer;
 import org.kurento.client.KurentoClient;
+import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.distributed.model.endpoint.DistributedPublisherEndpoint;
 import org.kurento.room.distributed.model.endpoint.DistributedSubscriberEndpoint;
+import org.kurento.room.interfaces.IRoomManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
@@ -22,6 +24,9 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
     private static final int TYPE_ID = 4;
 
     @Autowired
+    private KurentoClientProvider kmsManager;
+
+    @Autowired
     private ApplicationContext context;
 
     @Override
@@ -33,8 +38,8 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
     public void write(ObjectDataOutput out, DistributedSubscriberEndpoint endpoint)
             throws IOException {
         //DistributedMediaEndpoint serialization
-        DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getWebEndpoint(),endpoint.getKmsUrl());
-        DistributedRemoteObject rtpEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getRtpEndpoint(),endpoint.getKmsUrl());
+        DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getWebEndpoint(), endpoint.getKmsUrl());
+        DistributedRemoteObject rtpEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getRtpEndpoint(), endpoint.getKmsUrl());
 
         out.writeBoolean(endpoint.isWeb());
         out.writeBoolean(endpoint.isDataChannels());
@@ -43,12 +48,16 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
         out.writeUTF(endpoint.getOwner().getRoom().getName());
         out.writeUTF(endpoint.getOwner().getId());
         out.writeUTF(endpoint.getEndpointName());
-        out.writeUTF(endpoint.getMuteType().name());
+
+        MutedMediaType muteType = endpoint.getMuteType();
+
+        out.writeObject((muteType != null) ? muteType.name() : null);
+
         out.writeUTF(endpoint.getKmsUrl());
+        out.writeUTF(endpoint.getStreamId());
 
         //DistributedSubscriberEndpoint Serialization
         out.writeBoolean(endpoint.isConnectedToPublisher());
-        out.writeUTF(endpoint.getOwner().getStreamIdFromPublisher(endpoint.getPublisher()));
     }
 
     @Override
@@ -62,16 +71,20 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
         String roomName = in.readUTF();
         String participantId = in.readUTF();
         String endpointName = in.readUTF();
-        MutedMediaType muteType = MutedMediaType.valueOf(in.readUTF());
+        String muteTypeStr = in.readObject();
+        MutedMediaType muteType = (muteTypeStr != null) ? MutedMediaType.valueOf(muteTypeStr) : null;
         String kmsUrl = in.readUTF();
+        String streamId = in.readUTF();
 
         //DistributedSubscriberEndpoint serialization
         boolean connectedToPublisher = in.readBoolean();
-        String streamId = in.readUTF();
 
-        KurentoClient client = KurentoClient.create(kmsUrl);
-        return new DistributedSubscriberEndpoint(web,dataChannels,endpointName,kmsUrl,client,webEndpointRemoteObj,rtpEndpointRemoteObj,
-                roomName,participantId,muteType,connectedToPublisher,streamId);
+        KurentoClient client = kmsManager.getKurentoClient(kmsUrl);
+
+        IRoomManager roomManager = (IRoomManager) context.getBean("roomManager");
+
+        return (DistributedSubscriberEndpoint) context.getBean("distributedSubscriberEndpoint", web, dataChannels, endpointName, kmsUrl, streamId, client, webEndpointRemoteObj, rtpEndpointRemoteObj,
+                roomName, participantId, muteType, connectedToPublisher, roomManager);
     }
 
     @Override

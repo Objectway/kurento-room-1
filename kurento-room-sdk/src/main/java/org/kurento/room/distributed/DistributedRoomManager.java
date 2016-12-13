@@ -55,38 +55,6 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
     @PostConstruct
     public void init() {
         rooms = hazelcastInstance.getMap(distributedNamingService.getName("rooms"));
-        rooms.addInterceptor(new MapInterceptor() {
-            @Override
-            public Object interceptGet(Object value) {
-                if(value!=null) {
-                    ((DistributedRoom) value).setListener(DistributedRoomManager.this);
-                }
-                return value;
-            }
-
-            @Override
-            public void afterGet(Object value) {
-            }
-
-            @Override
-            public Object interceptPut(Object oldValue, Object newValue) {
-                return newValue;
-            }
-
-            @Override
-            public void afterPut(Object value) {
-            }
-
-            @Override
-            public Object interceptRemove(Object removedValue) {
-                return removedValue;
-            }
-
-            @Override
-            public void afterRemove(Object value) {
-            }
-
-        });
     }
 
     @Override
@@ -529,8 +497,9 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         // We may not have a kcProvider object!
         KurentoClient kurentoClient = kcProvider != null ? kcProvider.getKurentoClient(kcSessionInfo) : null;
         DistributedRoom room = (DistributedRoom) context.getBean("distributedRoom", roomName, kurentoClient, kcProvider != null ? kcProvider.destroyWhenUnused() : true);
-
+        room.setListener(this);
         DistributedRoom oldRoom = rooms.putIfAbsent(roomName, room);
+
         if (oldRoom != null) {
             log.warn("Room '{}' has just been created by another thread", roomName);
             return;

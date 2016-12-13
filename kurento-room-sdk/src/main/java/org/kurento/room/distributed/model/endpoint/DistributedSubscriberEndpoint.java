@@ -9,6 +9,7 @@ import org.kurento.room.distributed.DistributedParticipant;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IPublisherEndpoint;
+import org.kurento.room.interfaces.IRoomManager;
 import org.kurento.room.interfaces.ISubscriberEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,7 +26,7 @@ import java.util.concurrent.locks.Lock;
 @Scope("prototype")
 public class DistributedSubscriberEndpoint extends DistributedMediaEndpoint implements ISubscriberEndpoint {
     @Autowired
-    private RoomManager roomManager;
+    private IRoomManager roomManager;
     private final static Logger log = LoggerFactory.getLogger(DistributedSubscriberEndpoint.class);
 
 
@@ -34,14 +35,15 @@ public class DistributedSubscriberEndpoint extends DistributedMediaEndpoint impl
     private DistributedPublisherEndpoint publisher = null;
 
     public DistributedSubscriberEndpoint(boolean web, DistributedParticipant owner, String endpointName,
-                                         MediaPipeline pipeline, String kmsUrl) {
-        super(web, false, owner, endpointName, pipeline, log, kmsUrl);
+                                         MediaPipeline pipeline, String kmsUrl, String streamId) {
+        super(web, false, owner, endpointName, pipeline, log, kmsUrl, streamId);
     }
 
     public DistributedSubscriberEndpoint(boolean web,
                                          boolean dataChannels,
                                          String endpointName,
                                          String kmsUrl,
+                                         String streamId,
                                          KurentoClient kurentoClient,
                                          DistributedRemoteObject webEndpointInfo,
                                          DistributedRemoteObject rtpEndpointInfo,
@@ -49,10 +51,10 @@ public class DistributedSubscriberEndpoint extends DistributedMediaEndpoint impl
                                          String participantId,
                                          MutedMediaType muteType,
                                          boolean connectedToPublisher,
-                                         String streamId) {
-        super(web, dataChannels, endpointName, kmsUrl, kurentoClient, webEndpointInfo, rtpEndpointInfo, roomName, participantId, muteType, log);
+                                         IRoomManager roomManager) {
+        super(web, dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo, rtpEndpointInfo, roomName, participantId, muteType, roomManager, log);
         this.connectedToPublisher = connectedToPublisher;
-        this.publisher = (DistributedPublisherEndpoint)roomManager.getRoomByName(roomName).getParticipant(participantId).getPublisher(streamId);
+        this.publisher = (DistributedPublisherEndpoint) roomManager.getRoomByName(roomName).getParticipant(participantId).getPublisher(streamId);
     }
 
     @Override
@@ -89,7 +91,7 @@ public class DistributedSubscriberEndpoint extends DistributedMediaEndpoint impl
 
     @Override
     public void setPublisher(IPublisherEndpoint publisher) {
-        this.publisher = (DistributedPublisherEndpoint)publisher;
+        this.publisher = (DistributedPublisherEndpoint) publisher;
     }
 
     @Override

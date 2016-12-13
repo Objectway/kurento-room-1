@@ -22,6 +22,8 @@ public interface IMediaEndpoint {
 
     SdpEndpoint createEndpoint(ICountDownLatchWrapper endpointLatch);
 
+    SdpEndpoint createEndpoint();
+
     MediaPipeline getPipeline();
 
     void setMediaPipeline(MediaPipeline pipeline);

@@ -3,6 +3,7 @@ package org.kurento.room.distributed.serializers;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.StreamSerializer;
+import org.kurento.room.RoomManager;
 import org.kurento.room.distributed.DistributedParticipant;
 import org.kurento.room.distributed.DistributedRoom;
 import org.kurento.room.interfaces.IRoomManager;
@@ -21,8 +22,6 @@ public class DistributedParticipantSerializer implements StreamSerializer<Distri
 
     @Autowired
     private ApplicationContext context;
-    @Autowired
-    private IRoomManager roomManager;
 
     @Override
     public int getTypeId() {
@@ -44,6 +43,7 @@ public class DistributedParticipantSerializer implements StreamSerializer<Distri
             throws IOException {
         String id = in.readUTF();
         String name = in.readUTF();
+        IRoomManager roomManager = (IRoomManager) context.getBean("roomManager");
         DistributedRoom room = (DistributedRoom) roomManager.getRoomByName(in.readUTF());
         boolean dataChannels = in.readBoolean();
         boolean web = in.readBoolean();

@@ -37,6 +37,7 @@ import org.kurento.room.exception.RoomException.Code;
 import org.kurento.room.internal.Participant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /**
  * {@link WebRtcEndpoint} wrapper that supports buffering of {@link IceCandidate}s until the
@@ -146,6 +147,10 @@ public abstract class MediaEndpoint implements org.kurento.room.interfaces.IMedi
       }
     }
     return old;
+  }
+
+  public SdpEndpoint createEndpoint() {
+    throw new NotImplementedException();
   }
 
   /**

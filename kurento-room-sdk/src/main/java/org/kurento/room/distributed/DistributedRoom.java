@@ -24,6 +24,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
@@ -48,12 +49,15 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
     @Autowired
     private IDistributedNamingService distributedNamingService;
 
+    @Autowired
+    private ApplicationContext context;
+
     private final String name;
     private KurentoClient kurentoClient;
     private volatile boolean pipelineReleased = false;
     private boolean destroyKurentoClient;
     private MediaPipeline pipeline;
-    private CountDownLatch pipelineLatch = new CountDownLatch(1);
+    //    private CountDownLatch pipelineLatch = new CountDownLatch(1);
     private String kmsUri;
     private volatile boolean closed = false;
     private IMap<String, DistributedParticipant> participants;
@@ -61,12 +65,14 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     private ILock pipelineReleaseLock;
     private ILock pipelineCreateLock;
+    private ILock roomLock;
 
     @PostConstruct
     public void init() {
         participants = hazelcastInstance.getMap(distributedNamingService.getName("participants-" + name));
         pipelineCreateLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineCreateLock-" + name));
         pipelineReleaseLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineReleaseLock-" + name));
+        roomLock = hazelcastInstance.getLock(distributedNamingService.getName("lock-room-" + name));
         participants.addInterceptor(new MapInterceptor() {
             @Override
             public Object interceptGet(Object value) {
@@ -117,6 +123,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         this(roomName, kurentoClient, destroyKurentoClient);
         this.closed = closed;
         this.setPipelineFromInfo(pipelineInfo);
+        log.debug("New DistributedRoom deserialized instance, named '{}'", roomName);
     }
 
     @Override
@@ -132,19 +139,18 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             return null;
         }
 
-        try {
-            pipelineLatch.await(DistributedRoom.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
+//        try {
+//            pipelineLatch.await(DistributedRoom.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS);
+//        } catch (InterruptedException e) {
+//            throw new RuntimeException(e);
+//        }
         return this.pipeline;
     }
 
     @Override
     public void join(String participantId, String userName, boolean dataChannels, boolean webParticipant) throws RoomException {
 
-        Lock lock = getLock();
-        lock.lock();
+        roomLock.lock();
         try {
             checkClosed();
 
@@ -153,8 +159,9 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             }
             for (IParticipant p : participants.values()) {
                 if (p.getName().equals(userName)) {
-                    throw new RoomException(RoomException.Code.EXISTING_USER_IN_ROOM_ERROR_CODE,
-                            "User '" + userName + "' already exists in room '" + name + "'");
+//                    throw new RoomException(RoomException.Code.EXISTING_USER_IN_ROOM_ERROR_CODE,
+//                            "User '" + userName + "' already exists in room '" + name + "'");
+//                    return;
                 }
             }
 
@@ -162,16 +169,17 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             if (kurentoClient != null) {
                 createPipeline();
             }
-
-            participants.put(participantId, new DistributedParticipant(participantId, userName, this,
+            participants.put(participantId,(DistributedParticipant)context.getBean("distributedParticipant",participantId, userName, this,
                     dataChannels, webParticipant));
+//            participants.put(participantId, new DistributedParticipant(participantId, userName, this,
+//                    dataChannels, webParticipant));
             //TODO check
 //            activePublishersRegisterCount.put(participantId, new AtomicInteger(0));
 
 
             log.info("ROOM {}: Added participant {}", name, userName);
         } finally {
-            lock.unlock();
+            roomLock.unlock();
         }
 
     }
@@ -217,7 +225,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             throw new RoomException(RoomException.Code.USER_NOT_FOUND_ERROR_CODE,
                     "User #" + participantId + " not found in room '" + name + "'");
         }
-        participant.releaseAllFilters();
+//        participant.releaseAllFilters();
 
         log.info("PARTICIPANT {}: Leaving room {}", participant.getName(), this.name);
         Enumeration<String> publisherStreamIds = participant.getPublisherStreamIds();
@@ -369,23 +377,25 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
                 if (kurentoClient == null) {
                     throw new Exception("Cannot create a media pipeline without a KMS!");
                 }
-                kurentoClient.createMediaPipeline(new Continuation<MediaPipeline>() {
-                    @Override
-                    public void onSuccess(MediaPipeline result) throws Exception {
-                        pipeline = result;
-                        pipelineLatch.countDown();
-                        log.debug("ROOM {}: Created MediaPipeline", name);
-                    }
+                this.pipeline = kurentoClient.createMediaPipeline();
 
-                    @Override
-                    public void onError(Throwable cause) throws Exception {
-                        pipelineLatch.countDown();
-                        log.error("ROOM {}: Failed to create MediaPipeline", name, cause);
-                    }
-                });
+//                kurentoClient.createMediaPipeline(new Continuation<MediaPipeline>() {
+//                    @Override
+//                    public void onSuccess(MediaPipeline result) throws Exception {
+//                        pipeline = result;
+//                        pipelineLatch.countDown();
+//                        log.debug("ROOM {}: Created MediaPipeline", name);
+//                    }
+//
+//                    @Override
+//                    public void onError(Throwable cause) throws Exception {
+//                        pipelineLatch.countDown();
+//                        log.error("ROOM {}: Failed to create MediaPipeline", name, cause);
+//                    }
+//                });
             } catch (Exception e) {
                 log.error("Unable to create media pipeline for room '{}'", name, e);
-                pipelineLatch.countDown();
+//                pipelineLatch.countDown();
             }
             if (getPipeline() == null) {
                 throw new RoomException(RoomException.Code.ROOM_CANNOT_BE_CREATED_ERROR_CODE,
@@ -404,6 +414,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             });
         } finally {
             pipelineCreateLock.unlock();
+            listener.onChange(this);
         }
 
     }
@@ -414,22 +425,27 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             if (pipeline == null || pipelineReleased) {
                 return;
             }
-            getPipeline().release(new Continuation<Void>() {
-
-                @Override
-                public void onSuccess(Void result) throws Exception {
-                    log.debug("ROOM {}: Released Pipeline", DistributedRoom.this.name);
-                    pipelineReleased = true;
-                }
-
-                @Override
-                public void onError(Throwable cause) throws Exception {
-                    log.warn("ROOM {}: Could not successfully release Pipeline", DistributedRoom.this.name, cause);
-                    pipelineReleased = true;
-                }
-            });
+            getPipeline().release();
+            pipelineReleased = true;
+//            getPipeline().release(new Continuation<Void>() {
+//
+//                @Override
+//                public void onSuccess(Void result) throws Exception {
+//                    log.debug("ROOM {}: Released Pipeline", DistributedRoom.this.name);
+//                    pipelineReleased = true;
+//                }
+//
+//                @Override
+//                public void onError(Throwable cause) throws Exception {
+//                    log.warn("ROOM {}: Could not successfully release Pipeline", DistributedRoom.this.name, cause);
+//                    pipelineReleased = true;
+//                }
+//            });
+        } catch (Exception e) {
+            pipelineReleased = false;
         } finally {
             pipelineReleaseLock.unlock();
+            listener.onChange(this);
         }
     }
 
@@ -454,7 +470,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
                 // We always have a KurentoObject as a result, even if it does not exist in the KMS
                 pipeline = (MediaPipeline) kurentoClient.getById(pipelineInfo.getObjectRef(), clazz);
 
-                pipelineLatch.countDown();
+//                pipelineLatch.countDown();
             } catch (ClassNotFoundException ex) {
                 log.error(ex.toString());
             } catch (Exception e) {
@@ -474,7 +490,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         participants.set(participant.getId(), participant);
     }
 
-    protected Lock getLock() {
-        return hazelcastInstance.getLock(distributedNamingService.getName("lock-room-" + name));
-    }
+//    protected Lock getLock() {
+//        return hazelcastInstance.getLock(distributedNamingService.getName("lock-room-" + name));
+//    }
 }

@@ -3,7 +3,6 @@ package org.kurento.room.distributed.model.endpoint;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IList;
 import org.kurento.client.*;
-import org.kurento.room.RoomManager;
 import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.distributed.DistributedNamingService;
 import org.kurento.room.distributed.DistributedParticipant;
@@ -17,12 +16,11 @@ import org.kurento.room.interfaces.IRoomManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import javax.annotation.PostConstruct;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.locks.Lock;
+import org.kurento.room.distributed.interfaces.IChangeListener;
 
 /**
  * Created by sturiale on 06/12/16.
@@ -50,14 +48,16 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
 
     private String kmsUrl;
 
+    private String streamId;
+
+
     @Autowired
     private HazelcastInstance hazelcastInstance;
 
     @Autowired
     private DistributedNamingService namingService;
 
-    @Autowired
-    private IRoomManager roomManager;
+    private IChangeListener<DistributedMediaEndpoint> listener;
 
     @PostConstruct
     public void init() {
@@ -75,7 +75,7 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
      * @param log
      */
     public DistributedMediaEndpoint(boolean web, boolean dataChannels, DistributedParticipant owner, String endpointName,
-                                    MediaPipeline pipeline, Logger log, String kmsUrl) {
+                                    MediaPipeline pipeline, Logger log, String kmsUrl, String streamId) {
         if (log == null) {
             DistributedMediaEndpoint.log = LoggerFactory.getLogger(DistributedMediaEndpoint.class);
         } else {
@@ -84,21 +84,25 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
         this.web = web;
         this.dataChannels = dataChannels;
         this.owner = owner;
+        this.setListener(owner);
         this.setEndpointName(endpointName);
         this.setMediaPipeline(pipeline);
         this.kmsUrl = kmsUrl;
+        this.streamId = streamId;
     }
 
     public DistributedMediaEndpoint(boolean web,
                                     boolean dataChannels,
                                     String endpointName,
                                     String kmsUrl,
+                                    String streamId,
                                     KurentoClient kurentoClient,
                                     DistributedRemoteObject webEndpointInfo,
                                     DistributedRemoteObject rtpEndpointInfo,
                                     String roomName,
                                     String participantId,
                                     MutedMediaType muteType,
+                                    IRoomManager roomManager,
                                     Logger log) {
         if (log == null) {
             DistributedMediaEndpoint.log = LoggerFactory.getLogger(DistributedMediaEndpoint.class);
@@ -109,20 +113,22 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
         this.dataChannels = dataChannels;
         this.endpointName = endpointName;
         this.kmsUrl = kmsUrl;
+        this.streamId = streamId;
         this.muteType = muteType;
         IRoom room = roomManager.getRoomByName(roomName);
         this.owner = (DistributedParticipant) room.getParticipant(participantId);
+        this.setListener(owner);
         this.pipeline = room.getPipeline();
         try {
             if (webEndpointInfo != null) {
                 final Class<KurentoObject> clazz = (Class<KurentoObject>) Class.forName(webEndpointInfo.getClassName());
                 this.webEndpoint = (WebRtcEndpoint) kurentoClient.getById(webEndpointInfo.getObjectRef(), clazz);
-                endpointSubscription = registerElemErrListener(webEndpoint);
+//                endpointSubscription = registerElemErrListener(webEndpoint);
             }
             if (rtpEndpointInfo != null) {
                 final Class<KurentoObject> clazz = (Class<KurentoObject>) Class.forName(rtpEndpointInfo.getClassName());
                 this.endpoint = (RtpEndpoint) kurentoClient.getById(rtpEndpointInfo.getObjectRef(), clazz);
-                endpointSubscription = registerElemErrListener(endpoint);
+//                endpointSubscription = registerElemErrListener(endpoint);
             }
 
             // We always have a KurentoObject as a result, even if it does not exist in the KMS
@@ -176,16 +182,17 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
      *                      {@link WebRtcEndpoint} returns
      * @return the existing endpoint, if any
      */
-    public SdpEndpoint createEndpoint(ICountDownLatchWrapper endpointLatch) {
+    public SdpEndpoint createEndpoint() {
         Lock lock = getLock();
         lock.lock();
         try {
             SdpEndpoint old = this.getEndpoint();
             if (old == null) {
-                internalEndpointInitialization(endpointLatch);
-            } else {
-                endpointLatch.countDown();
+                internalEndpointInitialization();
             }
+//            else {
+//                endpointLatch.countDown();
+//            }
             if (this.isWeb()) {
                 while (!candidates.isEmpty()) {
                     internalAddIceCandidate(candidates.remove(0));
@@ -195,7 +202,11 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
             return old;
         } finally {
             lock.unlock();
+            listener.onChange(this);
         }
+    }
+    public SdpEndpoint createEndpoint(ICountDownLatchWrapper countDownLatchWrapper) {
+       throw new NotImplementedException();
     }
 
     protected Lock getLock() {
@@ -296,49 +307,61 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
      *
      * @param endpointLatch
      */
-    protected void internalEndpointInitialization(final ICountDownLatchWrapper endpointLatch) {
+    protected void internalEndpointInitialization() {
         if (this.isWeb()) {
             WebRtcEndpoint.Builder builder = new WebRtcEndpoint.Builder(pipeline);
             if (this.dataChannels) {
                 builder.useDataChannels();
             }
-            builder.buildAsync(new Continuation<WebRtcEndpoint>() {
-                @Override
-                public void onSuccess(WebRtcEndpoint result) throws Exception {
-                    webEndpoint = result;
+            webEndpoint = builder.build();
+            webEndpoint.setMaxVideoRecvBandwidth(600);
+            webEndpoint.setMinVideoRecvBandwidth(300);
+            webEndpoint.setMaxVideoSendBandwidth(600);
+            webEndpoint.setMinVideoSendBandwidth(300);
 
-                    webEndpoint.setMaxVideoRecvBandwidth(600);
-                    webEndpoint.setMinVideoRecvBandwidth(300);
-                    webEndpoint.setMaxVideoSendBandwidth(600);
-                    webEndpoint.setMinVideoSendBandwidth(300);
+            log.trace("EP {}: Created a new WebRtcEndpoint", endpointName);
+            endpointSubscription = registerElemErrListener(webEndpoint);
 
-                    endpointLatch.countDown();
-                    log.trace("EP {}: Created a new WebRtcEndpoint", endpointName);
-                    endpointSubscription = registerElemErrListener(webEndpoint);
-                }
-
-                @Override
-                public void onError(Throwable cause) throws Exception {
-                    endpointLatch.countDown();
-                    log.error("EP {}: Failed to create a new WebRtcEndpoint", endpointName, cause);
-                }
-            });
+//            builder.buildAsync(new Continuation<WebRtcEndpoint>() {
+//                @Override
+//                public void onSuccess(WebRtcEndpoint result) throws Exception {
+//                    webEndpoint = result;
+//
+//                    webEndpoint.setMaxVideoRecvBandwidth(600);
+//                    webEndpoint.setMinVideoRecvBandwidth(300);
+//                    webEndpoint.setMaxVideoSendBandwidth(600);
+//                    webEndpoint.setMinVideoSendBandwidth(300);
+//
+//                    endpointLatch.countDown();
+//                    log.trace("EP {}: Created a new WebRtcEndpoint", endpointName);
+//                    endpointSubscription = registerElemErrListener(webEndpoint);
+//                }
+//
+//                @Override
+//                public void onError(Throwable cause) throws Exception {
+//                    endpointLatch.countDown();
+//                    log.error("EP {}: Failed to create a new WebRtcEndpoint", endpointName, cause);
+//                }
+//            });
         } else {
-            new RtpEndpoint.Builder(pipeline).buildAsync(new Continuation<RtpEndpoint>() {
-                @Override
-                public void onSuccess(RtpEndpoint result) throws Exception {
-                    endpoint = result;
-                    endpointLatch.countDown();
-                    log.trace("EP {}: Created a new RtpEndpoint", endpointName);
-                    endpointSubscription = registerElemErrListener(endpoint);
-                }
-
-                @Override
-                public void onError(Throwable cause) throws Exception {
-                    endpointLatch.countDown();
-                    log.error("EP {}: Failed to create a new RtpEndpoint", endpointName, cause);
-                }
-            });
+            endpoint =  new RtpEndpoint.Builder(pipeline).build();
+            log.trace("EP {}: Created a new RtpEndpoint", endpointName);
+            endpointSubscription = registerElemErrListener(endpoint);
+//            new RtpEndpoint.Builder(pipeline).buildAsync(new Continuation<RtpEndpoint>() {
+//                @Override
+//                public void onSuccess(RtpEndpoint result) throws Exception {
+//                    endpoint = result;
+//                    endpointLatch.countDown();
+//                    log.trace("EP {}: Created a new RtpEndpoint", endpointName);
+//                    endpointSubscription = registerElemErrListener(endpoint);
+//                }
+//
+//                @Override
+//                public void onError(Throwable cause) throws Exception {
+//                    endpointLatch.countDown();
+//                    log.error("EP {}: Failed to create a new RtpEndpoint", endpointName, cause);
+//                }
+//            });
         }
     }
 
@@ -358,9 +381,11 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
             if (webEndpoint == null) {
                 candidates.add((DistributedIceCandidate)candidate);
             } else {
-                internalAddIceCandidate(candidate);
+                internalAddIceCandidate((DistributedIceCandidate)candidate);
             }
-        } finally {
+        }catch (Exception e){
+            log.error(e.toString());
+        } finally{
             lock.unlock();
         }
 
@@ -517,22 +542,26 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
         });
     }
 
-    private void internalAddIceCandidate(IceCandidate candidate) throws RoomException {
+    private void internalAddIceCandidate(DistributedIceCandidate candidate) throws RoomException {
         if (webEndpoint == null) {
             throw new RoomException(RoomException.Code.MEDIA_WEBRTC_ENDPOINT_ERROR_CODE,
                     "Can't add existing ICE candidates to null WebRtcEndpoint (ep: " + endpointName + ")");
         }
-        this.webEndpoint.addIceCandidate(candidate, new Continuation<Void>() {
-            @Override
-            public void onSuccess(Void result) throws Exception {
-                log.trace("Ice candidate added to the internal endpoint");
-            }
 
-            @Override
-            public void onError(Throwable cause) throws Exception {
-                log.warn("EP {}: Failed to add ice candidate to the internal endpoint", endpointName, cause);
-            }
-        });
+        // Kurento cannot handle DistributedIceCandidate class remotely, sho
+        // we convert the ice candidate to the Kurento class
+        this.webEndpoint.addIceCandidate(candidate.toIceCandidate());
+//        this.webEndpoint.addIceCandidate(candidate, new Continuation<Void>() {
+//            @Override
+//            public void onSuccess(Void result) throws Exception {
+//                log.trace("Ice candidate added to the internal endpoint");
+//            }
+//
+//            @Override
+//            public void onError(Throwable cause) throws Exception {
+//                log.warn("EP {}: Failed to add ice candidate to the internal endpoint", endpointName, cause);
+//            }
+//        });
     }
 
     public String getKmsUrl() {
@@ -546,4 +575,14 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
     public boolean isDataChannels() {
         return dataChannels;
     }
+
+    public void setListener(IChangeListener<DistributedMediaEndpoint> listener) {
+        this.listener = listener;
+    }
+
+    public String getStreamId() {
+        return streamId;
+    }
+
+
 }

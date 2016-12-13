@@ -8,6 +8,7 @@ import org.kurento.client.*;
 import org.kurento.client.internal.server.KurentoServerException;
 import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.distributed.interfaces.IChangeListener;
+import org.kurento.room.distributed.model.endpoint.DistributedMediaEndpoint;
 import org.kurento.room.distributed.model.endpoint.DistributedPublisherEndpoint;
 import org.kurento.room.distributed.model.endpoint.DistributedSubscriberEndpoint;
 import org.kurento.room.endpoint.SdpType;
@@ -20,6 +21,7 @@ import org.kurento.room.interfaces.ISubscriberEndpoint;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
@@ -34,13 +36,16 @@ import java.util.concurrent.TimeUnit;
  */
 @Component
 @Scope("prototype")
-public class DistributedParticipant implements IParticipant {
+public class DistributedParticipant implements IParticipant, IChangeListener<DistributedMediaEndpoint> {
     private static final Logger log = LoggerFactory.getLogger(DistributedParticipant.class);
     @Autowired
     private HazelcastInstance hazelcastInstance;
 
     @Autowired
     private DistributedNamingService distributedNamingService;
+
+    @Autowired
+    private ApplicationContext context;
 
     private String id;
     private String name;
@@ -55,7 +60,7 @@ public class DistributedParticipant implements IParticipant {
     // Listeners
     private IChangeListener<DistributedParticipant> listener;
 
-    private IMap<String, ICountDownLatch> publisherLatches;
+    //    private IMap<String, ICountDownLatch> publisherLatches;
     private IMap<String, Boolean> publishersStreamingFlags;
 
     @PostConstruct
@@ -63,7 +68,7 @@ public class DistributedParticipant implements IParticipant {
         publishers = hazelcastInstance.getMap(distributedNamingService.getName("participant-publishers" + name + "-" + room.getName()));
         subscribers = hazelcastInstance.getMap(distributedNamingService.getName("participant-subscribers" + name + "-" + room.getName()));
         registerCount = hazelcastInstance.getAtomicLong(distributedNamingService.getName("participant-register-count" + name + "-" + room.getName()));
-        publisherLatches = hazelcastInstance.getMap(distributedNamingService.getName("publisherLatches-" + name + "-" + room.getName()));
+//        publisherLatches = hazelcastInstance.getMap(distributedNamingService.getName("publisherLatches-" + name + "-" + room.getName()));
         publishersStreamingFlags = hazelcastInstance.getMap(distributedNamingService.getName("publishersStreamingFlags-" + name + "-" + room.getName()));
     }
 
@@ -78,10 +83,10 @@ public class DistributedParticipant implements IParticipant {
     @Override
     public void createPublishingEndpoint(String streamId) {
         final IPublisherEndpoint publisherEndpoint = getNewOrExistingPublisher(name, streamId);
-        final ICountDownLatch publisherLatch = publisherLatches.get(streamId);
-        publisherEndpoint.createEndpoint(new CountDownLatchHz(publisherLatch));
-
-        if (getPublisher(streamId).getEndpoint() == null) {
+//        final ICountDownLatch publisherLatch = publisherLatches.get(streamId);
+        publisherEndpoint.createEndpoint(/*new CountDownLatchHz(publisherLatch)*/);
+        final IPublisherEndpoint newPublisher = getPublisher(streamId);
+        if (newPublisher.getEndpoint() == null) {
             throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE, "Unable to create publisher endpoint");
         }
     }
@@ -141,18 +146,18 @@ public class DistributedParticipant implements IParticipant {
 
     @Override
     public IPublisherEndpoint getPublisher(String streamId) {
-        final ICountDownLatch endPointLatch = publisherLatches.get(streamId);
-        try {
-            if (!endPointLatch.await(DistributedRoom.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS)) {
-                throw new RoomException(
-                        RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
-                        "Timeout reached while waiting for publisher endpoint to be ready");
-            }
-        } catch (InterruptedException e) {
-            throw new RoomException(
-                    RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
-                    "Interrupted while waiting for publisher endpoint to be ready: " + e.getMessage());
-        }
+//        final ICountDownLatch endPointLatch = publisherLatches.get(streamId);
+//        try {
+//            if (!endPointLatch.await(DistributedRoom.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS)) {
+//                throw new RoomException(
+//                        RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
+//                        "Timeout reached while waiting for publisher endpoint to be ready");
+//            }
+//        } catch (InterruptedException e) {
+//            throw new RoomException(
+//                    RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
+//                    "Interrupted while waiting for publisher endpoint to be ready: " + e.getMessage());
+//        }
         return publishers.get(streamId);
     }
 
@@ -266,17 +271,18 @@ public class DistributedParticipant implements IParticipant {
         ISubscriberEndpoint subscriber = getNewOrExistingSubscriber(senderName, streamId);
 
         try {
-            CountDownLatch subscriberLatch = new CountDownLatch(1);
-            SdpEndpoint oldMediaEndpoint = subscriber.createEndpoint(new CountDownLatchJava(subscriberLatch));
-            try {
-                if (!subscriberLatch.await(DistributedRoom.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS)) {
-                    throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
-                            "Timeout reached when creating subscriber endpoint");
-                }
-            } catch (InterruptedException e) {
-                throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
-                        "Interrupted when creating subscriber endpoint: " + e.getMessage());
-            }
+            //CountDownLatch subscriberLatch = new CountDownLatch(1);
+            SdpEndpoint oldMediaEndpoint = subscriber.createEndpoint(); // new CountDownLatchJava(subscriberLatch));
+//
+//            try {
+//                if (!subscriberLatch.await(DistributedRoom.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS)) {
+//                    throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
+//                            "Timeout reached when creating subscriber endpoint");
+//                }
+//            } catch (InterruptedException e) {
+//                throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
+//                        "Interrupted when creating subscriber endpoint: " + e.getMessage());
+//            }
             if (oldMediaEndpoint != null) {
                 log.warn("PARTICIPANT {}: Two threads are trying to create at "
                         + "the same time a subscriber endpoint for user {}", this.name, senderName);
@@ -398,29 +404,38 @@ public class DistributedParticipant implements IParticipant {
             return;
         }
         this.closed = true;
-        for (String remoteParticipantName : subscribers.keySet()) {
-            DistributedSubscriberEndpoint subscriber = this.subscribers.get(remoteParticipantName);
-            if (subscriber != null && subscriber.getEndpoint() != null) {
-                releaseSubscriberEndpoint(remoteParticipantName, subscriber);
-                log.debug("PARTICIPANT {}: Released subscriber endpoint to {}", this.name,
-                        remoteParticipantName);
-            } else {
-                log.warn("PARTICIPANT {}: Trying to close subscriber endpoint to {}. "
-                        + "But the endpoint was never instantiated.", this.name, remoteParticipantName);
+//        try {
+            for (String remoteParticipantName : subscribers.keySet()) {
+                DistributedSubscriberEndpoint subscriber = subscribers.get(remoteParticipantName);
+                if (subscriber != null && subscriber.getEndpoint() != null) {
+                    releaseSubscriberEndpoint(remoteParticipantName, subscriber);
+                    log.debug("PARTICIPANT {}: Released subscriber endpoint to {}", this.name,
+                            remoteParticipantName);
+                } else {
+                    log.warn("PARTICIPANT {}: Trying to close subscriber endpoint to {}. "
+                            + "But the endpoint was never instantiated.", this.name, remoteParticipantName);
+                }
             }
-        }
 
-        for (String streamId : publishers.keySet()) {
-            releasePublisherEndpoint(streamId);
-        }
+            for (String streamId : publishers.keySet()) {
+                releasePublisherEndpoint(streamId);
+            }
+  /*      } catch (Exception e) {
+            log.error(e.toString());
+            e.printStackTrace();
+        }*/
     }
 
     @Override
     public ISubscriberEndpoint getNewOrExistingSubscriber(String remoteName, String streamId) {
         remoteName = remoteName + "_" + streamId;
-        DistributedSubscriberEndpoint sendingEndpoint = new DistributedSubscriberEndpoint(web, this, remoteName, this.room.getPipeline(), this.room.getKmsUri());
+//        DistributedSubscriberEndpoint sendingEndpoint = new DistributedSubscriberEndpoint(web, this, remoteName, this.room.getPipeline(), this.room.getKmsUri());
+        DistributedSubscriberEndpoint sendingEndpoint = (DistributedSubscriberEndpoint) context.getBean("distributedSubscriberEndpoint", web, this, remoteName, this.room.getPipeline(), this.room.getKmsUri(), streamId);
         DistributedSubscriberEndpoint existingSendingEndpoint =
                 this.subscribers.putIfAbsent(remoteName, sendingEndpoint);
+
+        log.debug("Subscribers {}: new key {}", this.name, remoteName);
+
         if (existingSendingEndpoint != null) {
             sendingEndpoint = existingSendingEndpoint;
             log.trace("PARTICIPANT {}: Already exists a subscriber endpoint to user {}", this.name,
@@ -433,7 +448,8 @@ public class DistributedParticipant implements IParticipant {
 
     @Override
     public IPublisherEndpoint getNewOrExistingPublisher(String endpointName, String streamId) {
-        DistributedPublisherEndpoint publisherEndpoint = new DistributedPublisherEndpoint(web, dataChannels, this, endpointName + "_" + streamId, room.getPipeline(), room.getKmsUri());
+//        DistributedPublisherEndpoint publisherEndpoint = new DistributedPublisherEndpoint(web, dataChannels, this, endpointName + "_" + streamId, room.getPipeline(), room.getKmsUri());
+        DistributedPublisherEndpoint publisherEndpoint = (DistributedPublisherEndpoint) context.getBean("distributedPublisherEndpoint", web, dataChannels, this, endpointName + "_" + streamId, room.getPipeline(), room.getKmsUri(), streamId);
         DistributedPublisherEndpoint existingPublisherEndpoint = publishers.putIfAbsent(streamId, publisherEndpoint);
 
         if (existingPublisherEndpoint != null) {
@@ -444,8 +460,9 @@ public class DistributedParticipant implements IParticipant {
             log.debug("PARTICIPANT {}: New publisher endpoint to user {} with streamId {}", this.name, endpointName, streamId);
 
             // The publisher is not streaming yet (only when publishRoom is called)
-            ICountDownLatch countDownLatch = hazelcastInstance.getCountDownLatch(distributedNamingService.getName("publisherLatch" + streamId + "-" + name + "-" + room.getName()));
-            publisherLatches.putIfAbsent(streamId, countDownLatch);
+//            CountDownLatch c = new CountDownLatch(1);
+//            ICountDownLatch countDownLatch = hazelcastInstance.getCountDownLatch(distributedNamingService.getName("publisherLatch" + streamId + "-" + name + "-" + room.getName()));
+//            publisherLatches.putIfAbsent(streamId, countDownLatch);
             publishersStreamingFlags.putIfAbsent(streamId, false);
 
             for (DistributedParticipant other : (Collection<DistributedParticipant>) room.getParticipants()) {
@@ -492,7 +509,7 @@ public class DistributedParticipant implements IParticipant {
             releaseElement(name, publisher.getEndpoint());
 
             publishers.remove(streamId);
-            publisherLatches.remove(streamId);
+//            publisherLatches.remove(streamId);
             publishersStreamingFlags.remove(streamId);
         } else {
             log.warn("PARTICIPANT {}: Trying to release publisher endpoint but is null, streamId {}", name, streamId);
@@ -599,16 +616,19 @@ public class DistributedParticipant implements IParticipant {
         this.listener = listener;
     }
 
-    public String getStreamIdFromPublisher(DistributedPublisherEndpoint publisherEndpoint) {
-        for (Map.Entry<String, DistributedPublisherEndpoint> entry : publishers.entrySet()) {
-            if (Objects.equals(publisherEndpoint, entry.getValue())) {
-                return entry.getKey();
-            }
-        }
-        return null;
-    }
 
     public IAtomicLong getRegisterCount() {
         return registerCount;
+    }
+
+    @Override
+    public void onChange(DistributedMediaEndpoint endpoint) {
+        if (endpoint instanceof DistributedPublisherEndpoint) {
+            DistributedPublisherEndpoint publisherEndpoint = (DistributedPublisherEndpoint) endpoint;
+            publishers.set(endpoint.getStreamId(), publisherEndpoint);
+        } else if (endpoint instanceof DistributedSubscriberEndpoint) {
+            DistributedSubscriberEndpoint subscriberEndpoint = (DistributedSubscriberEndpoint) endpoint;
+            subscribers.set(endpoint.getEndpointName(), subscriberEndpoint);
+        }
     }
 }
