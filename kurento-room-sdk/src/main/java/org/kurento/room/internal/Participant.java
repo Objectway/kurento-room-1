@@ -351,10 +351,42 @@ public class Participant implements IParticipant {
         return null;
     }
 
+    /**
+     * Given a composite name (eg. acuccu_microphone) returns the stream id (eg. microphone)
+     * This is needed because the subscribers map stores composite names as the keys.
+     *
+     * @param compositeName
+     * @return the stream id
+     */
+    private static String stripSenderName(final String compositeName) {
+        final int index = compositeName.lastIndexOf("_");
+        if (index == -1) {
+            return compositeName;
+        }
+
+        return compositeName.substring(index + 1);
+    }
+
+    /**
+     * Given a composite name (eg. acuccu_microphone) returns the name (eg. acuccu)
+     * This is needed because the subscribers map stores composite names as the keys.
+     *
+     * @param compositeName
+     * @return the name
+     */
+    private static String stripStreamId(final String compositeName) {
+        final int index = compositeName.lastIndexOf("_");
+        if (index == -1) {
+            return compositeName;
+        }
+
+        return compositeName.substring(0, index);
+    }
+
     @Override
     public void cancelReceivingAllMedias(String senderName) {
-        for (String streamId : subscribers.keySet()) {
-            cancelReceivingMedia(senderName, streamId);
+        for (String compositeName : subscribers.keySet()) {
+            cancelReceivingMedia(senderName, stripSenderName(compositeName));
         }
     }
 
@@ -436,8 +468,9 @@ public class Participant implements IParticipant {
             return;
         }
         this.closed = true;
-        for (String remoteParticipantName : subscribers.keySet()) {
-            SubscriberEndpoint subscriber = this.subscribers.get(remoteParticipantName);
+        for (String compositeName : subscribers.keySet()) {
+            final String remoteParticipantName = stripStreamId(compositeName);
+            SubscriberEndpoint subscriber = subscribers.get(compositeName);
             if (subscriber != null && subscriber.getEndpoint() != null) {
                 releaseSubscriberEndpoint(remoteParticipantName, subscriber);
                 log.debug("PARTICIPANT {}: Released subscriber endpoint to {}", this.name,
