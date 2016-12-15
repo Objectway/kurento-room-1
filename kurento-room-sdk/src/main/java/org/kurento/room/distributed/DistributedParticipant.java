@@ -231,7 +231,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
                 loopbackAlternativeSrc, loopbackConnectionType);
 
         // The publisher is now streaming
-        publishersStreamingFlags.put(streamId, true);
+        publishersStreamingFlags.set(streamId, true);
 
         log.trace("USER {}: Publishing Sdp ({}) is {}", this.name, sdpType, sdpResponse);
         log.info("USER {}: Is now publishing video in room {} streamId {} streamType {}", this.name, this.room.getName(), streamId, streamType);

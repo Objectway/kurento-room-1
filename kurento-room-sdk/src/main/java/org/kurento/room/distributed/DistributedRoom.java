@@ -137,7 +137,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             if (kurentoClient != null) {
                 createPipeline();
             }
-            participants.put(participantId, (DistributedParticipant) context.getBean("distributedParticipant", participantId, userName, this,
+            participants.set(participantId, (DistributedParticipant) context.getBean("distributedParticipant", participantId, userName, this,
                     dataChannels, webParticipant));
 //            participants.put(participantId, new DistributedParticipant(participantId, userName, this,
 //                    dataChannels, webParticipant));
