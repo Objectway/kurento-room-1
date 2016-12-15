@@ -73,38 +73,6 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         pipelineCreateLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineCreateLock-" + name));
         pipelineReleaseLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineReleaseLock-" + name));
         roomLock = hazelcastInstance.getLock(distributedNamingService.getName("lock-room-" + name));
-        participants.addInterceptor(new MapInterceptor() {
-            @Override
-            public Object interceptGet(Object value) {
-                if (value != null) {
-                    ((DistributedParticipant) value).setListener(DistributedRoom.this);
-                }
-                return value;
-            }
-
-            @Override
-            public void afterGet(Object value) {
-            }
-
-            @Override
-            public Object interceptPut(Object oldValue, Object newValue) {
-                return newValue;
-            }
-
-            @Override
-            public void afterPut(Object value) {
-            }
-
-            @Override
-            public Object interceptRemove(Object removedValue) {
-                return removedValue;
-            }
-
-            @Override
-            public void afterRemove(Object value) {
-            }
-
-        });
     }
 
     public DistributedRoom(String roomName, KurentoClient kurentoClient,
@@ -114,7 +82,8 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         this.kurentoClient = kurentoClient;
         this.destroyKurentoClient = destroyKurentoClient;
         this.kmsUri = ReflectionUtils.getKmsUri(kurentoClient);
-        log.debug("New DistributedRoom instance, named '{}'", roomName);
+        log.info("KMS: Using kmsUri {} for {}", kmsUri, roomName);
+        // log.debug("New DistributedRoom instance, named '{}'", roomName);
 
     }
 
@@ -123,7 +92,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         this(roomName, kurentoClient, destroyKurentoClient);
         this.closed = closed;
         this.setPipelineFromInfo(pipelineInfo);
-        log.debug("New DistributedRoom deserialized instance, named '{}'", roomName);
+        // log.debug("New DistributedRoom deserialized instance, named '{}'", roomName);
     }
 
     @Override
@@ -159,9 +128,8 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             }
             for (IParticipant p : participants.values()) {
                 if (p.getName().equals(userName)) {
-//                    throw new RoomException(RoomException.Code.EXISTING_USER_IN_ROOM_ERROR_CODE,
-//                            "User '" + userName + "' already exists in room '" + name + "'");
-//                    return;
+                    throw new RoomException(RoomException.Code.EXISTING_USER_IN_ROOM_ERROR_CODE,
+                            "User '" + userName + "' already exists in room '" + name + "'");
                 }
             }
 
@@ -169,7 +137,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             if (kurentoClient != null) {
                 createPipeline();
             }
-            participants.put(participantId,(DistributedParticipant)context.getBean("distributedParticipant",participantId, userName, this,
+            participants.put(participantId, (DistributedParticipant) context.getBean("distributedParticipant", participantId, userName, this,
                     dataChannels, webParticipant));
 //            participants.put(participantId, new DistributedParticipant(participantId, userName, this,
 //                    dataChannels, webParticipant));
@@ -235,8 +203,10 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
                 this.deregisterPublisher(participant.getId());
             }
         }
-        this.removeParticipant(participant);
+
+        // We can't invoke methods on partipant after removing it from hazelcast.So we moved removeParticipant after participant.close()
         participant.close();
+        this.removeParticipant(participant);
     }
 
     @Override
@@ -490,7 +460,4 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         participants.set(participant.getId(), participant);
     }
 
-//    protected Lock getLock() {
-//        return hazelcastInstance.getLock(distributedNamingService.getName("lock-room-" + name));
-//    }
 }

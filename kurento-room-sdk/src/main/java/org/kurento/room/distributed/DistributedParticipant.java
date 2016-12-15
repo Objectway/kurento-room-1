@@ -78,6 +78,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         this.web = web;
         this.dataChannels = dataChannels;
         this.room = room;
+        setListener(room);
     }
 
     @Override
@@ -85,8 +86,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         final IPublisherEndpoint publisherEndpoint = getNewOrExistingPublisher(name, streamId);
 //        final ICountDownLatch publisherLatch = publisherLatches.get(streamId);
         publisherEndpoint.createEndpoint(/*new CountDownLatchHz(publisherLatch)*/);
-        final IPublisherEndpoint newPublisher = getPublisher(streamId);
-        if (newPublisher.getEndpoint() == null) {
+        if (publisherEndpoint.getEndpoint() == null) {
             throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE, "Unable to create publisher endpoint");
         }
     }
@@ -319,18 +319,49 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         return null;
     }
 
+    /**
+     * Given a composite name (eg. acuccu_microphone) returns the stream id (eg. microphone)
+     * This is needed because the subscribers map stores composite names as the keys.
+     *
+     * @param compositeName
+     * @return the stream id
+     */
+    private static String stripSenderName(final String compositeName) {
+        final int index = compositeName.lastIndexOf("_");
+        if (index == -1) {
+            return compositeName;
+        }
+
+        return compositeName.substring(index + 1);
+    }
+
+    /**
+     * Given a composite name (eg. acuccu_microphone) returns the name (eg. acuccu)
+     * This is needed because the subscribers map stores composite names as the keys.
+     *
+     * @param compositeName
+     * @return the name
+     */
+    private static String stripStreamId(final String compositeName) {
+        final int index = compositeName.lastIndexOf("_");
+        if (index == -1) {
+            return compositeName;
+        }
+
+        return compositeName.substring(0, index);
+    }
+
     @Override
     public void cancelReceivingAllMedias(String senderName) {
-        for (String streamId : subscribers.keySet()) {
-            cancelReceivingMedia(senderName, streamId);
+        for (String compositeName : subscribers.keySet()) {
+            cancelReceivingMedia(senderName, stripSenderName(compositeName));
         }
     }
 
     @Override
     public void cancelReceivingMedia(String senderName, String streamId) {
-        senderName = senderName + "_" + streamId;
         log.debug("PARTICIPANT {}: cancel receiving media from {}", this.name, senderName);
-        DistributedSubscriberEndpoint subscriberEndpoint = subscribers.remove(senderName);
+        DistributedSubscriberEndpoint subscriberEndpoint = subscribers.remove(senderName + "_" + streamId);
         if (subscriberEndpoint == null || subscriberEndpoint.getEndpoint() == null) {
             log.warn("PARTICIPANT {}: Trying to cancel receiving video from user {}. "
                     + "But there is no such subscriber endpoint.", this.name, senderName);
@@ -405,21 +436,22 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         }
         this.closed = true;
 //        try {
-            for (String remoteParticipantName : subscribers.keySet()) {
-                DistributedSubscriberEndpoint subscriber = subscribers.get(remoteParticipantName);
-                if (subscriber != null && subscriber.getEndpoint() != null) {
-                    releaseSubscriberEndpoint(remoteParticipantName, subscriber);
-                    log.debug("PARTICIPANT {}: Released subscriber endpoint to {}", this.name,
-                            remoteParticipantName);
-                } else {
-                    log.warn("PARTICIPANT {}: Trying to close subscriber endpoint to {}. "
-                            + "But the endpoint was never instantiated.", this.name, remoteParticipantName);
-                }
+        for (String compositeName : subscribers.keySet()) {
+            final String remoteParticipantName = stripStreamId(compositeName);
+            DistributedSubscriberEndpoint subscriber = subscribers.get(compositeName);
+            if (subscriber != null && subscriber.getEndpoint() != null) {
+                releaseSubscriberEndpoint(remoteParticipantName, subscriber);
+                log.debug("PARTICIPANT {}: Released subscriber endpoint to {}", this.name,
+                        remoteParticipantName);
+            } else {
+                log.warn("PARTICIPANT {}: Trying to close subscriber endpoint to {}. "
+                        + "But the endpoint was never instantiated.", this.name, remoteParticipantName);
             }
+        }
 
-            for (String streamId : publishers.keySet()) {
-                releasePublisherEndpoint(streamId);
-            }
+        for (String streamId : publishers.keySet()) {
+            releasePublisherEndpoint(streamId);
+        }
   /*      } catch (Exception e) {
             log.error(e.toString());
             e.printStackTrace();
@@ -503,9 +535,9 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         final IPublisherEndpoint publisher = publishers.get(streamId);
         if (publisher != null && publisher.getEndpoint() != null) {
             publisher.unregisterErrorListeners();
-            for (MediaElement el : publisher.getMediaElements()) {
-                releaseElement(name, el);
-            }
+//            for (MediaElement el : publisher.getMediaElements()) {
+//                releaseElement(name, el);
+//            }
             releaseElement(name, publisher.getEndpoint());
 
             publishers.remove(streamId);
@@ -520,6 +552,8 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         if (subscriber != null) {
             subscriber.unregisterErrorListeners();
             releaseElement(senderName, subscriber.getEndpoint());
+            senderName = senderName + "_" + ((DistributedSubscriberEndpoint) subscriber).getStreamId();
+            subscribers.remove(senderName);
         } else {
             log.warn("PARTICIPANT {}: Trying to release subscriber endpoint for '{}' but is null", name,
                     senderName);

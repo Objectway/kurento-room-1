@@ -41,7 +41,7 @@ public class DistributedRoomSerializer implements StreamSerializer<DistributedRo
         out.writeUTF(distributedRoom.getKmsUri());
         out.writeBoolean(distributedRoom.getDestroyKurentoClient());
         out.writeBoolean(distributedRoom.isClosed());
-        out.writeObject(DistributedRemoteObject.fromKurentoObject(distributedRoom.getPipeline(), distributedRoom.getKmsUri()));
+        out.writeObject(DistributedRemoteObject.fromKurentoObject(distributedRoom.getPipeline(), DistributedRemoteObject.MEDIAPIPELINE_CLASSNAME, distributedRoom.getKmsUri()));
     }
 
     @Override

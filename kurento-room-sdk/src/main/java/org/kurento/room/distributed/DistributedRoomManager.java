@@ -2,7 +2,6 @@ package org.kurento.room.distributed;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
-import com.hazelcast.map.MapInterceptor;
 import org.kurento.client.*;
 import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.api.KurentoClientSessionInfo;

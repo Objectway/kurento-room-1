@@ -2,6 +2,7 @@ package org.kurento.room.distributed.model.endpoint;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IList;
+import com.hazelcast.core.ILock;
 import org.kurento.client.*;
 import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.distributed.DistributedNamingService;
@@ -59,9 +60,12 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
 
     private IChangeListener<DistributedMediaEndpoint> listener;
 
+    private ILock mediaEndpointLock;
+
     @PostConstruct
     public void init() {
         candidates = hazelcastInstance.getList(namingService.getName("icecandidates-" + endpointName));
+        mediaEndpointLock = hazelcastInstance.getLock(namingService.getName("lock-mediaendpoint-" + endpointName));
     }
 
     /**
@@ -210,7 +214,7 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
     }
 
     protected Lock getLock() {
-        return hazelcastInstance.getLock(namingService.getName("lock-mediaendpoint-" + endpointName));
+        return mediaEndpointLock;
     }
 
     /**

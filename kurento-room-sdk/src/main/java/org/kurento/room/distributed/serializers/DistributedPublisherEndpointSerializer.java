@@ -38,8 +38,8 @@ public class DistributedPublisherEndpointSerializer implements StreamSerializer<
     public void write(ObjectDataOutput out, DistributedPublisherEndpoint endpoint)
             throws IOException {
         //DistributedMediaEndpoint serialization
-        DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getWebEndpoint(), endpoint.getKmsUrl());
-        DistributedRemoteObject rtpEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getRtpEndpoint(), endpoint.getKmsUrl());
+        DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getWebEndpoint(), DistributedRemoteObject.WEBRTCENDPOINT_CLASSNAME, endpoint.getKmsUrl());
+        DistributedRemoteObject rtpEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getRtpEndpoint(), DistributedRemoteObject.RTPENDPOINT_CLASSNAME, endpoint.getKmsUrl());
 
         out.writeBoolean(endpoint.isWeb());
         out.writeBoolean(endpoint.isDataChannels());
@@ -55,8 +55,8 @@ public class DistributedPublisherEndpointSerializer implements StreamSerializer<
         out.writeUTF(endpoint.getStreamId());
 
         //DistributedPublisherEndpointSerialization
-        DistributedRemoteObject passThruRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getPassThru(), endpoint.getKmsUrl());
-        DistributedRemoteObject recEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getRecorderEndpoint(), endpoint.getKmsUrl());
+        DistributedRemoteObject passThruRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getPassThru(), DistributedRemoteObject.PASSTHROUGH_CLASSNAME, endpoint.getKmsUrl());
+        DistributedRemoteObject recEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getRecorderEndpoint(), DistributedRemoteObject.RECORDERENDPOINT_CLASSNAME, endpoint.getKmsUrl());
         out.writeObject(passThruRemoteObj);
         out.writeBoolean(endpoint.isConnected());
         out.writeObject(recEndpointRemoteObj);

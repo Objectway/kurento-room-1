@@ -38,8 +38,8 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
     public void write(ObjectDataOutput out, DistributedSubscriberEndpoint endpoint)
             throws IOException {
         //DistributedMediaEndpoint serialization
-        DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getWebEndpoint(), endpoint.getKmsUrl());
-        DistributedRemoteObject rtpEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getRtpEndpoint(), endpoint.getKmsUrl());
+        DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getWebEndpoint(), DistributedRemoteObject.WEBRTCENDPOINT_CLASSNAME, endpoint.getKmsUrl());
+        DistributedRemoteObject rtpEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getRtpEndpoint(), DistributedRemoteObject.RTPENDPOINT_CLASSNAME, endpoint.getKmsUrl());
 
         out.writeBoolean(endpoint.isWeb());
         out.writeBoolean(endpoint.isDataChannels());
