@@ -3,7 +3,9 @@ package org.kurento.room.distributed;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ILock;
 import com.hazelcast.core.IMap;
-import com.hazelcast.map.MapInterceptor;
+import com.hazelcast.map.EntryProcessor;
+import com.hazelcast.mapreduce.aggregation.Aggregations;
+import com.hazelcast.mapreduce.aggregation.Supplier;
 import org.kurento.client.*;
 import org.kurento.room.api.RoomHandler;
 import org.kurento.room.distributed.interfaces.IChangeListener;
@@ -15,19 +17,15 @@ import org.kurento.room.interfaces.IRoom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.annotation.Scope;
+import org.springframework.stereotype.Component;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import javax.annotation.PostConstruct;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.Lock;
-
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Scope;
-import org.springframework.stereotype.Component;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 
 /**
@@ -84,7 +82,6 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         this.kmsUri = ReflectionUtils.getKmsUri(kurentoClient);
         log.info("KMS: Using kmsUri {} for {}", kmsUri, roomName);
         // log.debug("New DistributedRoom instance, named '{}'", roomName);
-
     }
 
     public DistributedRoom(String roomName, KurentoClient kurentoClient,
@@ -118,8 +115,8 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     @Override
     public void join(String participantId, String userName, boolean dataChannels, boolean webParticipant) throws RoomException {
-
         roomLock.lock();
+
         try {
             checkClosed();
 
@@ -309,20 +306,14 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     @Override
     public int getActivePublishers() {
-        int result = 0;
-
         // For each participant
-        for (String participantId : participants.keySet()) {
+        final Supplier<String, DistributedParticipant, Boolean> supplier = Supplier.fromPredicate(
+                // If it has been registered at least once
+                // WARNING: This is DIFFERENT from checking for the ACTUAL number of streams in the corresponding participant!
+                entry -> entry.getValue().getRegisterCount().get() > 0
+        );
 
-            // If it has been registered at least once
-            // WARNING: This is DIFFERENT from checking for the ACTUAL number of streams in the corresponding participant!
-            if (participants.get(participantId).getRegisterCount().get() > 0) {
-                // then he is active
-                result++;
-            }
-        }
-
-        return result;
+        return participants.aggregate(supplier, Aggregations.count()).intValue();
     }
 
     @Override

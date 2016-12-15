@@ -64,8 +64,9 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         IRoom room = rooms.get(roomName);
         if (room == null && kcSessionInfo != null) {
             createRoom(kcSessionInfo);
+            room = rooms.get(roomName);
         }
-        room = rooms.get(roomName);
+
         if (room == null) {
             log.warn("Room '{}' not found");
             throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE,
@@ -77,6 +78,7 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
             throw new RoomException(RoomException.Code.ROOM_CLOSED_ERROR_CODE,
                     "'" + userName + "' is trying to join room '" + roomName + "' but it is closing");
         }
+
         Set<UserParticipant> existingParticipants = getParticipants(roomName);
         room.join(participantId, userName, dataChannels, webParticipant);
         return existingParticipants;
