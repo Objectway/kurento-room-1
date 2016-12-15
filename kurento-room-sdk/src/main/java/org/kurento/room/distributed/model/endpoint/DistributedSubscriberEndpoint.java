@@ -25,10 +25,10 @@ import java.util.concurrent.locks.Lock;
 @Component
 @Scope("prototype")
 public class DistributedSubscriberEndpoint extends DistributedMediaEndpoint implements ISubscriberEndpoint {
-    @Autowired
-    private IRoomManager roomManager;
     private final static Logger log = LoggerFactory.getLogger(DistributedSubscriberEndpoint.class);
 
+    @Autowired
+    private IRoomManager roomManager;
 
     private boolean connectedToPublisher = false;
 

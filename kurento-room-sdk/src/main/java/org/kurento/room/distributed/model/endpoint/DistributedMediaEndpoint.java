@@ -7,6 +7,7 @@ import org.kurento.client.*;
 import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.distributed.DistributedNamingService;
 import org.kurento.room.distributed.DistributedParticipant;
+import org.kurento.room.distributed.interfaces.IChangeListener;
 import org.kurento.room.distributed.interfaces.ICountDownLatchWrapper;
 import org.kurento.room.distributed.model.DistributedIceCandidate;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
@@ -21,7 +22,6 @@ import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import javax.annotation.PostConstruct;
 import java.util.concurrent.locks.Lock;
-import org.kurento.room.distributed.interfaces.IChangeListener;
 
 /**
  * Created by sturiale on 06/12/16.
@@ -66,6 +66,14 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
     public void init() {
         candidates = hazelcastInstance.getList(namingService.getName("icecandidates-" + endpointName));
         mediaEndpointLock = hazelcastInstance.getLock(namingService.getName("lock-mediaendpoint-" + endpointName));
+    }
+
+    /**
+     * Destroys the hazelcast resources.
+     */
+    public void destroyHazelcastResources() {
+        candidates.destroy();
+        mediaEndpointLock.destroy();
     }
 
     /**
@@ -198,12 +206,13 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
 //                endpointLatch.countDown();
 //            }
             if (this.isWeb()) {
-                while (!candidates.isEmpty()) {
-                    internalAddIceCandidate(candidates.remove(0));
-                    //TODO updated object
+                for (DistributedIceCandidate candidate : candidates) {
+                    internalAddIceCandidate(candidate);
                 }
+                candidates.clear();
             }
             return old;
+
         } finally {
             lock.unlock();
             listener.onChange(this);

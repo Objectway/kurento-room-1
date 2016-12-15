@@ -56,6 +56,13 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         rooms = hazelcastInstance.getMap(distributedNamingService.getName("rooms"));
     }
 
+    /**
+     * Destroys the hazelcast resources.
+     */
+    public void destroyHazelcastResources() {
+        rooms.destroy();
+    }
+
     @Override
     public Set<UserParticipant> joinRoom(String userName, String roomName, boolean dataChannels, boolean webParticipant, KurentoClientSessionInfo kcSessionInfo, String participantId) throws RoomException {
         log.debug("Request [JOIN_ROOM] user={}, room={}, web={} " + "kcSessionInfo.room={} ({})",
@@ -108,6 +115,8 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         if (remainingParticipants.isEmpty()) {
             log.debug("No more participants in room '{}', removing it and closing it", roomName);
             room.close();
+
+            ((DistributedRoom)room).destroyHazelcastResources();
             rooms.remove(roomName);
             log.warn("Room '{}' removed and closed", roomName);
         }
@@ -520,7 +529,7 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
 
     @Override
     public Set<UserParticipant> closeRoom(String roomName) throws RoomException {
-        IRoom room = rooms.get(roomName);
+        DistributedRoom room = rooms.get(roomName);
         if (room == null) {
             throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomName + "' not found");
         }
@@ -539,6 +548,7 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
             }
         }
         room.close();
+        room.destroyHazelcastResources();
         rooms.remove(roomName);
         log.warn("Room '{}' removed and closed", roomName);
         return participants;

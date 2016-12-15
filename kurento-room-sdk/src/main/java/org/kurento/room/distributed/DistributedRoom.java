@@ -73,6 +73,16 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         roomLock = hazelcastInstance.getLock(distributedNamingService.getName("lock-room-" + name));
     }
 
+    /**
+     * Destroys the hazelcast resources.
+     */
+    public void destroyHazelcastResources() {
+        participants.destroy();
+        pipelineCreateLock.destroy();
+        pipelineReleaseLock.destroy();
+        roomLock.destroy();
+    }
+
     public DistributedRoom(String roomName, KurentoClient kurentoClient,
                            boolean destroyKurentoClient) {
 
@@ -294,6 +304,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
         checkClosed();
 
+        ((DistributedParticipant)participant).destroyHazelcastResources();
         participants.remove(participant.getId());
         //TODO check
 //        activePublishersRegisterCount.remove(participant.getId());

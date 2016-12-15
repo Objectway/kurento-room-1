@@ -63,6 +63,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
     //    private IMap<String, ICountDownLatch> publisherLatches;
     private IMap<String, Boolean> publishersStreamingFlags;
 
+
     @PostConstruct
     public void init() {
         publishers = hazelcastInstance.getMap(distributedNamingService.getName("participant-publishers" + name + "-" + room.getName()));
@@ -70,6 +71,16 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         registerCount = hazelcastInstance.getAtomicLong(distributedNamingService.getName("participant-register-count" + name + "-" + room.getName()));
 //        publisherLatches = hazelcastInstance.getMap(distributedNamingService.getName("publisherLatches-" + name + "-" + room.getName()));
         publishersStreamingFlags = hazelcastInstance.getMap(distributedNamingService.getName("publishersStreamingFlags-" + name + "-" + room.getName()));
+    }
+
+    /**
+     * Destroys the hazelcast resources.
+     */
+    public void destroyHazelcastResources() {
+        publishers.destroy();
+        subscribers.destroy();
+        registerCount.destroy();
+        publishersStreamingFlags.destroy();
     }
 
     public DistributedParticipant(String id, String name, DistributedRoom room, boolean dataChannels, boolean web) {
@@ -268,7 +279,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
 
         log.debug("PARTICIPANT {}: Creating a subscriber endpoint to user {}", this.name, senderName);
 
-        ISubscriberEndpoint subscriber = getNewOrExistingSubscriber(senderName, streamId);
+        DistributedSubscriberEndpoint subscriber = (DistributedSubscriberEndpoint)getNewOrExistingSubscriber(senderName, streamId);
 
         try {
             //CountDownLatch subscriberLatch = new CountDownLatch(1);
@@ -293,13 +304,14 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
                         "Unable to create subscriber endpoint");
             }
         } catch (RoomException e) {
-            this.subscribers.remove(senderName);
+            subscriber.destroyHazelcastResources();
+            subscribers.remove(senderName);
             throw e;
         }
 
         log.debug("PARTICIPANT {}: Created subscriber endpoint for user {} with streamId {}", this.name, senderName, streamId);
         try {
-            String sdpAnswer = subscriber.subscribe(sdpOffer, (IPublisherEndpoint) sender.getPublisher(streamId));
+            String sdpAnswer = subscriber.subscribe(sdpOffer, sender.getPublisher(streamId));
             log.trace("USER {}: Subscribing SdpAnswer is {} with streamId {}", this.name, sdpAnswer, streamId);
             log.info("USER {}: Is now receiving video from {} in room {} with streamId {}", this.name, senderName,
                     this.room.getName(), streamId);
@@ -313,7 +325,8 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
             } else {
                 log.error("Exception connecting subscriber endpoint " + "to publisher endpoint", e);
             }
-            this.subscribers.remove(senderName);
+            subscriber.destroyHazelcastResources();
+            subscribers.remove(senderName);
             releaseSubscriberEndpoint(senderName, subscriber);
         }
         return null;
@@ -370,6 +383,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
                     senderName);
 
             releaseSubscriberEndpoint(senderName, subscriberEndpoint);
+            subscriberEndpoint.destroyHazelcastResources();
         }
     }
 
@@ -532,7 +546,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
     }
 
     private void releasePublisherEndpoint(final String streamId) {
-        final IPublisherEndpoint publisher = publishers.get(streamId);
+        final DistributedPublisherEndpoint publisher = publishers.get(streamId);
         if (publisher != null && publisher.getEndpoint() != null) {
             publisher.unregisterErrorListeners();
 //            for (MediaElement el : publisher.getMediaElements()) {
@@ -540,6 +554,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
 //            }
             releaseElement(name, publisher.getEndpoint());
 
+            publisher.destroyHazelcastResources();
             publishers.remove(streamId);
 //            publisherLatches.remove(streamId);
             publishersStreamingFlags.remove(streamId);
@@ -553,6 +568,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
             subscriber.unregisterErrorListeners();
             releaseElement(senderName, subscriber.getEndpoint());
             senderName = senderName + "_" + ((DistributedSubscriberEndpoint) subscriber).getStreamId();
+            ((DistributedSubscriberEndpoint) subscriber).destroyHazelcastResources();
             subscribers.remove(senderName);
         } else {
             log.warn("PARTICIPANT {}: Trying to release subscriber endpoint for '{}' but is null", name,
