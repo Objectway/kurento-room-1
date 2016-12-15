@@ -144,13 +144,11 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             if (kurentoClient != null) {
                 createPipeline();
             }
+            // Note: The IAtomicLong contained in DistributedParticipant starts at 0 pre default
             participants.set(participantId, (DistributedParticipant) context.getBean("distributedParticipant", participantId, userName, this,
                     dataChannels, webParticipant));
 //            participants.put(participantId, new DistributedParticipant(participantId, userName, this,
 //                    dataChannels, webParticipant));
-            //TODO check
-//            activePublishersRegisterCount.put(participantId, new AtomicInteger(0));
-
 
             log.info("ROOM {}: Added participant {}", name, userName);
         } finally {
@@ -254,13 +252,12 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
     public void close() {
         if (!closed) {
 
-            for (IParticipant user : participants.values()) {
+            for (DistributedParticipant user : participants.values()) {
                 user.close();
+                user.destroyHazelcastResources();
             }
 
             participants.clear();
-//            TODO check
-//            activePublishersRegisterCount.clear();
 
             // The pipeline is created only when we have a suitable KMS provider!
             if (kurentoClient != null) {
@@ -268,7 +265,6 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             }
 
             log.debug("Room {} closed", this.name);
-
             if (destroyKurentoClient && kurentoClient != null) {
                 kurentoClient.destroy();
             }
@@ -301,13 +297,10 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
     }
 
     private void removeParticipant(IParticipant participant) {
-
         checkClosed();
 
         ((DistributedParticipant)participant).destroyHazelcastResources();
         participants.remove(participant.getId());
-        //TODO check
-//        activePublishersRegisterCount.remove(participant.getId());
         log.debug("ROOM {}: Cancel receiving media from user '{}' for other users", this.name,
                 participant.getName());
         for (IParticipant other : participants.values()) {
