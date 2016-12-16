@@ -29,6 +29,12 @@ import java.util.concurrent.locks.Lock;
 public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
     private static Logger log;
 
+    @Autowired
+    private HazelcastInstance hazelcastInstance;
+
+    @Autowired
+    private DistributedNamingService namingService;
+
     private boolean web = false;
 
     private boolean dataChannels = false;
@@ -42,7 +48,6 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
     private MediaPipeline pipeline = null;
     private ListenerSubscription endpointSubscription = null;
 
-
     private IList<DistributedIceCandidate> candidates;
 
     private MutedMediaType muteType;
@@ -51,14 +56,7 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
 
     private String streamId;
 
-
-    @Autowired
-    private HazelcastInstance hazelcastInstance;
-
-    @Autowired
-    private DistributedNamingService namingService;
-
-    private IChangeListener<DistributedMediaEndpoint> listener;
+    protected IChangeListener<DistributedMediaEndpoint> listener;
 
     private ILock mediaEndpointLock;
 

@@ -30,14 +30,11 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
     private PassThrough passThru = null;
     private ListenerSubscription passThruSubscription = null;
 
-
     private boolean connected = false;
-
 
     // An (optional) recorder endpoint
     private RecorderEndpoint recorderEndpoint = null;
     private Long callStreamId = null;
-
 
     public DistributedPublisherEndpoint(boolean web, boolean dataChannels, DistributedParticipant owner,
                                         String endpointName, MediaPipeline pipeline, String kmsUrl, String streamId) {
@@ -103,6 +100,9 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
 
             // Start the recording
             recorderEndpoint.record();
+
+            // Signal the participant that this endpoint data has changed
+            listener.onChange(this);
         }
     }
 
@@ -119,6 +119,9 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
 
             recorderEndpoint = null;
             callStreamId = null;
+
+            // Signal the participant that this endpoint data has changed
+            listener.onChange(this);
         }
     }
 
@@ -271,7 +274,7 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
     }
 
     @Override
-    public void revert(MediaElement shaper, boolean releaseElement) throws RoomException {
+    public void revert(MediaElement shaper, boolean ùElement) throws RoomException {
         throw new NotImplementedException();
     }
 
