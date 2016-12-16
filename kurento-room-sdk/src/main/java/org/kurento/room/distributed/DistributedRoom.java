@@ -90,7 +90,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         this.kurentoClient = kurentoClient;
         this.destroyKurentoClient = destroyKurentoClient;
         this.kmsUri = ReflectionUtils.getKmsUri(kurentoClient);
-        log.info("KMS: Using kmsUri {} for {}", kmsUri, roomName);
+        // log.info("KMS: Using kmsUri {} for {}", kmsUri, roomName);
         // log.debug("New DistributedRoom instance, named '{}'", roomName);
     }
 
@@ -299,10 +299,15 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
     private void removeParticipant(IParticipant participant) {
         checkClosed();
 
-        ((DistributedParticipant)participant).destroyHazelcastResources();
+        // Warning: We must call destroyHazelcastResources AFTER we
+        // remove the element from the map, otherwise the destroyed resources
+        // will be recreated (most likely the .remove() causes a deserialization)
         participants.remove(participant.getId());
+        ((DistributedParticipant)participant).destroyHazelcastResources();
+
         log.debug("ROOM {}: Cancel receiving media from user '{}' for other users", this.name,
                 participant.getName());
+
         for (IParticipant other : participants.values()) {
             other.cancelReceivingAllMedias(participant.getName());
         }

@@ -304,8 +304,11 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
                         "Unable to create subscriber endpoint");
             }
         } catch (RoomException e) {
-            subscriber.destroyHazelcastResources();
+            // Warning: We must call destroyHazelcastResources AFTER we
+            // remove the element from the map, otherwise the destroyed resources
+            // will be recreated (most likely the .remove() causes a deserialization)
             subscribers.remove(senderName);
+            subscriber.destroyHazelcastResources();
             throw e;
         }
 
@@ -325,8 +328,12 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
             } else {
                 log.error("Exception connecting subscriber endpoint " + "to publisher endpoint", e);
             }
-            subscriber.destroyHazelcastResources();
+
+            // Warning: We must call destroyHazelcastResources AFTER we
+            // remove the element from the map, otherwise the destroyed resources
+            // will be recreated (most likely the .remove() causes a deserialization)
             subscribers.remove(senderName);
+            subscriber.destroyHazelcastResources();
             releaseSubscriberEndpoint(senderName, subscriber);
         }
         return null;
@@ -480,7 +487,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         DistributedSubscriberEndpoint existingSendingEndpoint =
                 this.subscribers.putIfAbsent(remoteName, sendingEndpoint);
 
-        log.debug("Subscribers {}: new key {}", this.name, remoteName);
+//        log.debug("Subscribers {}: new key {}", this.name, remoteName);
 
         if (existingSendingEndpoint != null) {
             sendingEndpoint = existingSendingEndpoint;
@@ -489,6 +496,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         } else {
             log.debug("PARTICIPANT {}: New subscriber endpoint to user {}", this.name, remoteName);
         }
+
         return sendingEndpoint;
     }
 
@@ -554,8 +562,11 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
 //            }
             releaseElement(name, publisher.getEndpoint());
 
-            publisher.destroyHazelcastResources();
+            // Warning: We must call destroyHazelcastResources AFTER we
+            // remove the element from the map, otherwise the destroyed resources
+            // will be recreated (most likely the .remove() causes a deserialization)
             publishers.remove(streamId);
+            publisher.destroyHazelcastResources();
 //            publisherLatches.remove(streamId);
             publishersStreamingFlags.remove(streamId);
         } else {
@@ -568,8 +579,12 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
             subscriber.unregisterErrorListeners();
             releaseElement(senderName, subscriber.getEndpoint());
             senderName = senderName + "_" + ((DistributedSubscriberEndpoint) subscriber).getStreamId();
-            ((DistributedSubscriberEndpoint) subscriber).destroyHazelcastResources();
+
+            // Warning: We must call destroyHazelcastResources AFTER we
+            // remove the element from the map, otherwise the destroyed resources
+            // will be recreated (most likely the .remove() causes a deserialization)
             subscribers.remove(senderName);
+            ((DistributedSubscriberEndpoint) subscriber).destroyHazelcastResources();
         } else {
             log.warn("PARTICIPANT {}: Trying to release subscriber endpoint for '{}' but is null", name,
                     senderName);

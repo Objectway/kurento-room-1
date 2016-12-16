@@ -116,8 +116,11 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
             log.debug("No more participants in room '{}', removing it and closing it", roomName);
             room.close();
 
-            ((DistributedRoom)room).destroyHazelcastResources();
+            // Warning: We must call destroyHazelcastResources AFTER we
+            // remove the element from the map, otherwise the destroyed resources
+            // will be recreated (most likely the .remove() causes a deserialization)
             rooms.remove(roomName);
+            ((DistributedRoom)room).destroyHazelcastResources();
             log.warn("Room '{}' removed and closed", roomName);
         }
         return remainingParticipants;
@@ -547,9 +550,15 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
                 log.warn("Error evicting participant with id '{}' from room '{}'", pid, roomName, e);
             }
         }
+
         room.close();
-        room.destroyHazelcastResources();
+
+        // Warning: We must call destroyHazelcastResources AFTER we
+        // remove the element from the map, otherwise the destroyed resources
+        // will be recreated (most likely the .remove() causes a deserialization)
         rooms.remove(roomName);
+        room.destroyHazelcastResources();
+
         log.warn("Room '{}' removed and closed", roomName);
         return participants;
     }
