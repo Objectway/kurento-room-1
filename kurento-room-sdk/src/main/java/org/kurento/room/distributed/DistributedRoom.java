@@ -73,6 +73,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         roomLock = hazelcastInstance.getLock(distributedNamingService.getName("lock-room-" + name));
     }
 
+
     /**
      * Destroys the hazelcast resources.
      */
@@ -90,7 +91,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         this.kurentoClient = kurentoClient;
         this.destroyKurentoClient = destroyKurentoClient;
         this.kmsUri = ReflectionUtils.getKmsUri(kurentoClient);
-        // log.info("KMS: Using kmsUri {} for {}", kmsUri, roomName);
+         log.info("KMS: Using kmsUri {} for {}", kmsUri, roomName);
         // log.debug("New DistributedRoom instance, named '{}'", roomName);
     }
 
@@ -424,6 +425,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         throw new NotImplementedException();
     }
 
+    @Override
     public String getKmsUri() {
         return kmsUri;
     }

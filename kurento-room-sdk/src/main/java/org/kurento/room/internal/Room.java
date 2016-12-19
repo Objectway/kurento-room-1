@@ -18,6 +18,7 @@ package org.kurento.room.internal;
 
 import org.kurento.client.*;
 import org.kurento.room.api.RoomHandler;
+import org.kurento.room.distributed.ReflectionUtils;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.exception.RoomException.Code;
 import org.kurento.room.interfaces.IParticipant;
@@ -67,7 +68,7 @@ public class Room implements IRoom {
     private Object pipelineReleaseLock = new Object();
     private volatile boolean pipelineReleased = false;
     private boolean destroyKurentoClient;
-
+    private String kmsUri;
     private final ConcurrentHashMap<String, String> filterStates = new ConcurrentHashMap<>();
 
     public Room(String roomName, KurentoClient kurentoClient, RoomHandler roomHandler,
@@ -76,6 +77,7 @@ public class Room implements IRoom {
         this.kurentoClient = kurentoClient;
         this.destroyKurentoClient = destroyKurentoClient;
         this.roomHandler = roomHandler;
+        this.kmsUri = ReflectionUtils.getKmsUri(kurentoClient);
         log.debug("New ROOM instance, named '{}'", roomName);
     }
 
@@ -397,5 +399,10 @@ public class Room implements IRoom {
         for (Participant participant : participants.values()) {
             roomHandler.updateFilter(getName(), participant, filterId, newState);
         }
+    }
+
+    @Override
+    public String getKmsUri() {
+        return kmsUri;
     }
 }

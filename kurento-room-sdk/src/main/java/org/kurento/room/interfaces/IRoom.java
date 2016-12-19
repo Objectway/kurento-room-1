@@ -11,6 +11,12 @@ import java.util.Set;
  * Interface for a Room
  */
 public interface IRoom {
+    /**
+     * Returns the URI of the KMS assigned to the room
+     * @return
+     */
+    String getKmsUri();
+
     String getName();
     MediaPipeline getPipeline();
     void join(String participantId, String userName, boolean dataChannels, boolean webParticipant) throws RoomException;
