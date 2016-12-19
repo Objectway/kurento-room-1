@@ -10,7 +10,7 @@ import org.springframework.stereotype.Component;
 @Component
 public class DistributedNamingService implements IDistributedNamingService {
 
-    @Value("#{@environment['hazelcast.naming.profile_override'] ?:'${config.profile}'}")
+    @Value("#{@props['hazelcast.naming.profile_override'] ?:'${config.profile}'}")
     private String profile;
 
     @Value("${hazelcast.naming.prefix}")
