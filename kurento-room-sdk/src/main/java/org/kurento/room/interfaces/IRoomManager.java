@@ -386,4 +386,6 @@ public interface IRoomManager {
     // ------------------ HELPERS ------------------------------------------
 
     void updateFilter(String roomId, String filterId);
+
+    IRoom getRoomByName(String name);
 }

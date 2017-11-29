@@ -70,6 +70,17 @@ public abstract class KmsManager implements KurentoClientProvider {
     return getKms((DefaultKurentoClientSessionInfo) sessionInfo).getKurentoClient();
   }
 
+  @Override
+  public synchronized KurentoClient getKurentoClient(final String kmsUri) throws RoomException {
+    for (Kms kms : kmss) {
+      if (kms.getUri().toString().equals(kmsUri)) {
+        return kms.getKurentoClient();
+      }
+    }
+
+    return null;
+  }
+
   /**
    * Returns a {@link Kms} using a round-robin strategy.
    *

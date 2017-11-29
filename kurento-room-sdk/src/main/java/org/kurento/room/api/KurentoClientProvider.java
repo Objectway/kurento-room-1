@@ -40,5 +40,13 @@ public interface KurentoClientProvider {
    */
   KurentoClient getKurentoClient(KurentoClientSessionInfo sessionInfo) throws RoomException;
 
+  /**
+   * Returns a KurentoClient linked to the specified Kms.
+   * @param kmsUri
+   * @return
+   * @throws RoomException
+   */
+  KurentoClient getKurentoClient(final String kmsUri) throws RoomException;
+
   boolean destroyWhenUnused();
 }

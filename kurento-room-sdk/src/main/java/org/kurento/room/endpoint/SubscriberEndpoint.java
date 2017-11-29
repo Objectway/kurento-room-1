@@ -21,6 +21,8 @@ import org.kurento.client.MediaType;
 import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.exception.RoomException.Code;
+import org.kurento.room.interfaces.IPublisherEndpoint;
+import org.kurento.room.interfaces.ISubscriberEndpoint;
 import org.kurento.room.internal.Participant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,7 +32,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author <a href="mailto:rvlad@naevatec.com">Radu Tom Vlad</a>
  */
-public class SubscriberEndpoint extends MediaEndpoint {
+public class SubscriberEndpoint extends MediaEndpoint implements ISubscriberEndpoint {
   private final static Logger log = LoggerFactory.getLogger(SubscriberEndpoint.class);
 
   private boolean connectedToPublisher = false;
@@ -42,7 +44,8 @@ public class SubscriberEndpoint extends MediaEndpoint {
     super(web, false, owner, endpointName, pipeline, log);
   }
 
-  public synchronized String subscribe(String sdpOffer, PublisherEndpoint publisher) {
+  @Override
+  public synchronized String subscribe(String sdpOffer, IPublisherEndpoint publisher) {
     registerOnIceCandidateEventListener();
     String sdpAnswer = processOffer(sdpOffer);
     gatherCandidates();
@@ -52,20 +55,24 @@ public class SubscriberEndpoint extends MediaEndpoint {
     return sdpAnswer;
   }
 
+  @Override
   public boolean isConnectedToPublisher() {
     return connectedToPublisher;
   }
 
+  @Override
   public void setConnectedToPublisher(boolean connectedToPublisher) {
     this.connectedToPublisher = connectedToPublisher;
   }
 
+  @Override
   public PublisherEndpoint getPublisher() {
     return publisher;
   }
 
-  public void setPublisher(PublisherEndpoint publisher) {
-    this.publisher = publisher;
+  @Override
+  public void setPublisher(IPublisherEndpoint publisher) {
+    this.publisher = (PublisherEndpoint) publisher;
   }
 
   @Override

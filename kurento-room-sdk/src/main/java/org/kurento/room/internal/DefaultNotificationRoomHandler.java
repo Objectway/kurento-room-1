@@ -28,6 +28,7 @@ import org.kurento.room.exception.RoomException;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import org.kurento.room.interfaces.IParticipant;
 import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /**
@@ -243,10 +244,10 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
   }
 
   @Override
-  public void onPipelineError(String roomName, Collection<Participant> participants, String description) {
+  public void onPipelineError(String roomName, Collection<IParticipant> participants, String description) {
     JsonObject notifParams = new JsonObject();
     notifParams.addProperty(ProtocolElements.MEDIAERROR_ERROR_PARAM, description);
-    for (Participant participant : participants) {
+    for (IParticipant participant : participants) {
 //      notifService.sendNotification(participant.getId(), ProtocolElements.MEDIAERROR_METHOD, notifParams);
     }
   }

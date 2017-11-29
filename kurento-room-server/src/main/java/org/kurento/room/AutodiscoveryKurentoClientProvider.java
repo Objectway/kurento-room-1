@@ -21,6 +21,7 @@ import org.kurento.client.Properties;
 import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.api.KurentoClientSessionInfo;
 import org.kurento.room.exception.RoomException;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 public class AutodiscoveryKurentoClientProvider implements KurentoClientProvider {
 
@@ -31,6 +32,11 @@ public class AutodiscoveryKurentoClientProvider implements KurentoClientProvider
 
     return KurentoClient.create(Properties.of("loadPoints", ROOM_PIPELINE_LOAD_POINTS));
 
+  }
+
+  @Override
+  public KurentoClient getKurentoClient(String kmsUri) throws RoomException {
+    throw new NotImplementedException();
   }
 
   @Override

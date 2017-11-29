@@ -48,6 +48,12 @@
 
 	<dependencies>
 		<dependency>
+			<groupId>com.hazelcast</groupId>
+			<artifactId>hazelcast-all</artifactId>
+			<version>3.6.5</version>
+		</dependency>
+
+		<dependency>
 			<groupId>org.kurento</groupId>
 			<artifactId>kurento-client</artifactId>
 			<exclusions>
@@ -88,6 +94,7 @@
 			<artifactId>powermock-api-mockito</artifactId>
 			<scope>test</scope>
 		</dependency>
+
 	</dependencies>
 
 	<profiles>

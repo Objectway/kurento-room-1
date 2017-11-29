@@ -26,11 +26,13 @@ import org.kurento.room.endpoint.SdpType;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.exception.RoomException.Code;
 import org.kurento.room.interfaces.IParticipant;
+import org.kurento.room.interfaces.IRoom;
 import org.kurento.room.interfaces.IRoomManager;
 import org.kurento.room.internal.Participant;
 import org.kurento.room.internal.Room;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PreDestroy;
@@ -46,30 +48,25 @@ import java.util.concurrent.ConcurrentMap;
  *
  * @author <a href="mailto:rvlad@naevatec.com">Radu Tom Vlad</a>
  */
-@Component
+// @Component
 public class RoomManager implements IRoomManager {
   private final Logger log = LoggerFactory.getLogger(RoomManager.class);
 
+  private final ConcurrentMap<String, Room> rooms = new ConcurrentHashMap<String, Room>();
+  private volatile boolean closed = false;
+
+  @Autowired
   private RoomHandler roomHandler;
 
   // Note: This can be null if we don't want to use a KMS!
+  @Autowired
   private KurentoClientProvider kcProvider;
-
-  private final ConcurrentMap<String, Room> rooms = new ConcurrentHashMap<String, Room>();
-
-  private volatile boolean closed = false;
 
   /**
    * Provides an instance of the room manager by setting a room handler and the
    * {@link KurentoClient} provider.
-   *
-   * @param roomHandler the room handler implementation
-   * @param kcProvider  enables the manager to obtain Kurento Client instances
    */
-  public RoomManager(RoomHandler roomHandler, KurentoClientProvider kcProvider) {
-    super();
-    this.roomHandler = roomHandler;
-    this.kcProvider = kcProvider;
+  public RoomManager() {
   }
 
   @Override
@@ -612,7 +609,11 @@ public class RoomManager implements IRoomManager {
   @Override
   public void updateFilter(String roomId, String filterId) {
     Room room = rooms.get(roomId);
-
     room.updateFilter(filterId);
+  }
+
+  @Override
+  public IRoom getRoomByName(String name) {
+    return rooms.get(name);
   }
 }

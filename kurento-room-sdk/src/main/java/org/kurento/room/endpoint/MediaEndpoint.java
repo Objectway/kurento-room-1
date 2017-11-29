@@ -31,11 +31,13 @@ import org.kurento.client.RtpEndpoint;
 import org.kurento.client.SdpEndpoint;
 import org.kurento.client.WebRtcEndpoint;
 import org.kurento.room.api.MutedMediaType;
+import org.kurento.room.distributed.interfaces.ICountDownLatchWrapper;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.exception.RoomException.Code;
 import org.kurento.room.internal.Participant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 /**
  * {@link WebRtcEndpoint} wrapper that supports buffering of {@link IceCandidate}s until the
@@ -44,7 +46,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author <a href="mailto:rvlad@naevatec.com">Radu Tom Vlad</a>
  */
-public abstract class MediaEndpoint {
+public abstract class MediaEndpoint implements org.kurento.room.interfaces.IMediaEndpoint {
   private static Logger log;
 
   private boolean web = false;
@@ -87,6 +89,7 @@ public abstract class MediaEndpoint {
     this.setMediaPipeline(pipeline);
   }
 
+  @Override
   public boolean isWeb() {
     return web;
   }
@@ -94,6 +97,7 @@ public abstract class MediaEndpoint {
   /**
    * @return the user session that created this endpoint
    */
+  @Override
   public Participant getOwner() {
     return owner;
   }
@@ -101,6 +105,7 @@ public abstract class MediaEndpoint {
   /**
    * @return the internal endpoint ({@link RtpEndpoint} or {@link WebRtcEndpoint})
    */
+  @Override
   public SdpEndpoint getEndpoint() {
     if (this.isWeb()) {
       return this.webEndpoint;
@@ -128,7 +133,8 @@ public abstract class MediaEndpoint {
    *
    * @return the existing endpoint, if any
    */
-  public synchronized SdpEndpoint createEndpoint(CountDownLatch endpointLatch) {
+  @Override
+  public synchronized SdpEndpoint createEndpoint(ICountDownLatchWrapper endpointLatch) {
     SdpEndpoint old = this.getEndpoint();
     if (old == null) {
       internalEndpointInitialization(endpointLatch);
@@ -143,9 +149,14 @@ public abstract class MediaEndpoint {
     return old;
   }
 
+  public SdpEndpoint createEndpoint() {
+    throw new NotImplementedException();
+  }
+
   /**
    * @return the pipeline
    */
+  @Override
   public MediaPipeline getPipeline() {
     return this.pipeline;
   }
@@ -156,6 +167,7 @@ public abstract class MediaEndpoint {
    * @param pipeline
    *          the {@link MediaPipeline}
    */
+  @Override
   public void setMediaPipeline(MediaPipeline pipeline) {
     this.pipeline = pipeline;
   }
@@ -163,6 +175,7 @@ public abstract class MediaEndpoint {
   /**
    * @return name of this endpoint (as indicated by the browser)
    */
+  @Override
   public String getEndpointName() {
     return endpointName;
   }
@@ -173,6 +186,7 @@ public abstract class MediaEndpoint {
    * @param endpointName
    *          the name
    */
+  @Override
   public void setEndpointName(String endpointName) {
     this.endpointName = endpointName;
   }
@@ -180,27 +194,17 @@ public abstract class MediaEndpoint {
   /**
    * Unregisters all error listeners created for media elements owned by this instance.
    */
+  @Override
   public synchronized void unregisterErrorListeners() {
     unregisterElementErrListener(endpoint, endpointSubscription);
   }
 
-  /**
-   * Mute the media stream.
-   *
-   * @param muteType
-   *          which type of leg to disconnect (audio, video or both)
-   */
-  public abstract void mute(MutedMediaType muteType);
-
-  /**
-   * Reconnect the muted media leg(s).
-   */
-  public abstract void unmute();
-
+  @Override
   public void setMuteType(MutedMediaType muteType) {
     this.muteType = muteType;
   }
 
+  @Override
   public MutedMediaType getMuteType() {
     return this.muteType;
   }
@@ -233,7 +237,7 @@ public abstract class MediaEndpoint {
    *
    * @param endpointLatch
    */
-  protected void internalEndpointInitialization(final CountDownLatch endpointLatch) {
+  protected void internalEndpointInitialization(final ICountDownLatchWrapper endpointLatch) {
     if (this.isWeb()) {
       WebRtcEndpoint.Builder builder = new WebRtcEndpoint.Builder(pipeline);
       if (this.dataChannels) {
@@ -286,6 +290,7 @@ public abstract class MediaEndpoint {
    * @param candidate
    *          the remote candidate
    */
+  @Override
   public synchronized void addIceCandidate(IceCandidate candidate) throws RoomException {
     if (!this.isWeb()) {
       throw new RoomException(Code.MEDIA_NOT_A_WEB_ENDPOINT_ERROR_CODE, "Operation not supported");
