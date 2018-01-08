@@ -8,7 +8,7 @@
 		<version>6.6.1-SNAPSHOT</version>
 	</parent>
 
-	<artifactId>kurento-room</artifactId>
+	<artifactId>kurento-room-ow</artifactId>
 	<version>9.0.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 
@@ -31,12 +31,25 @@
 		<url>http://www.kurento.org</url>
 	</organization>
 
-	<scm>
-		<url>${kurento-room.scm.url}</url>
-		<connection>scm:git:${kurento-room.scm.connection}</connection>
-		<developerConnection>scm:git:${kurento-room.scm.connection}</developerConnection>
-		<tag>develop</tag>
-	</scm>
+	<!--<scm>-->
+		<!--<url>${kurento-room.scm.url}</url>-->
+		<!--<connection>scm:git:${kurento-room.scm.connection}</connection>-->
+		<!--<developerConnection>scm:git:${kurento-room.scm.connection}</developerConnection>-->
+		<!--<tag>develop</tag>-->
+	<!--</scm>-->
+
+	<distributionManagement>
+		<repository>
+			<id>central</id>
+			<name>Releases</name>
+			<url>http://cvssrv.objectway.it/artifactory/libs-release-local</url>
+		</repository>
+		<snapshotRepository>
+			<id>snapshots</id>
+			<name>Snapshots</name>
+			<url>http://cvssrv.objectway.it/artifactory/libs-snapshot-local</url>
+		</snapshotRepository>
+	</distributionManagement>
 
 	<developers>
 		<developer>
@@ -100,37 +113,37 @@
 		<dependencies>
 			<dependency>
 				<groupId>org.kurento</groupId>
-				<artifactId>kurento-room-sdk</artifactId>
+				<artifactId>kurento-room-sdk-ow</artifactId>
 				<version>${version.kurento.room}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.kurento</groupId>
-				<artifactId>kurento-room-server</artifactId>
+				<artifactId>kurento-room-server-ow</artifactId>
 				<version>${version.kurento.room}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.kurento</groupId>
-				<artifactId>kurento-room-client</artifactId>
+				<artifactId>kurento-room-client-ow</artifactId>
 				<version>${version.kurento.room}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.kurento</groupId>
-				<artifactId>kurento-room-client-js</artifactId>
+				<artifactId>kurento-room-client-js-ow</artifactId>
 				<version>${version.kurento.room}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.kurento</groupId>
-				<artifactId>kurento-room-test</artifactId>
+				<artifactId>kurento-room-test-ow</artifactId>
 				<version>${version.kurento.room}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.kurento</groupId>
-				<artifactId>kurento-room-demo</artifactId>
+				<artifactId>kurento-room-demo-ow</artifactId>
 				<version>${version.kurento.room}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.kurento</groupId>
-				<artifactId>kurento-room-basicapp</artifactId>
+				<artifactId>kurento-room-basicapp-ow</artifactId>
 				<version>${version.kurento.room}</version>
 			</dependency>
 
