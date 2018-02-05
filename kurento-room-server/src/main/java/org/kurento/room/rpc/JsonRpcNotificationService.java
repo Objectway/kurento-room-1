@@ -48,7 +48,7 @@ public class JsonRpcNotificationService implements UserNotificationService {
       final SessionWrapper sessionWrapper = sessions.get(sessionId);
       totalTransactions += sessionWrapper.getTransactions().size();
       }
-    log.info("Total transactions: {} on {} sessions", sessions.size(), totalTransactions);
+    log.info("Total transactions: {} on {} sessions", totalTransactions, sessions.size());
     //log.info("End sessions dump");
   }
 
