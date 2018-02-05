@@ -41,6 +41,17 @@ public class JsonRpcNotificationService implements UserNotificationService {
 
   private static ConcurrentMap<String, SessionWrapper> sessions = new ConcurrentHashMap<String, SessionWrapper>();
 
+  public void logSessionsSizes() {
+    //log.debug("Begin sessions dump");
+    int totalTransactions = 0;
+    for (String sessionId : sessions.keySet()) {
+      final SessionWrapper sessionWrapper = sessions.get(sessionId);
+      totalTransactions += sessionWrapper.getTransactions().size();
+      }
+    log.debug("Total transactions: {} on {} sessions", sessions.size(), totalTransactions);
+    //log.debug("End sessions dump");
+  }
+
   public SessionWrapper addTransaction(Transaction t, Request<JsonObject> request) {
     String sessionId = t.getSession().getSessionId();
     SessionWrapper sw = sessions.get(sessionId);
