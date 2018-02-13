@@ -91,7 +91,6 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         this.kurentoClient = kurentoClient;
         this.destroyKurentoClient = destroyKurentoClient;
         this.kmsUri = ReflectionUtils.getKmsUri(kurentoClient);
-         log.info("KMS: Using kmsUri {} for {}", kmsUri, roomName);
         // log.debug("New DistributedRoom instance, named '{}'", roomName);
     }
 
@@ -126,6 +125,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     @Override
     public void join(String participantId, String userName, boolean dataChannels, boolean webParticipant) throws RoomException {
+        log.info("KMS: Using kmsUri {} for {}", kmsUri, name);
         roomLock.lock();
 
         try {
