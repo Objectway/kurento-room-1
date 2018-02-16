@@ -47,16 +47,32 @@ public class PublisherEndpoint extends MediaEndpoint implements IPublisherEndpoi
     private LinkedList<String> elementIds = new LinkedList<String>();
     private boolean connected = false;
 
-    private Map<String, ListenerSubscription> elementsErrorSubscriptions =
-            new HashMap<String, ListenerSubscription>();
+    private Map<String, ListenerSubscription> elementsErrorSubscriptions = new HashMap<String, ListenerSubscription>();
 
     // An (optional) recorder endpoint
+    private HubPort hubPort = null;
     private RecorderEndpoint recorderEndpoint = null;
     private Long callStreamId = null;
 
     public PublisherEndpoint(boolean web, boolean dataChannels, Participant owner,
                              String endpointName, MediaPipeline pipeline) {
         super(web, dataChannels, owner, endpointName, pipeline, log);
+    }
+
+    @Override
+    public void startGlobalRecording() {
+        if (hubPort == null) {
+            hubPort = this.getOwner().getRoom().allocateHubPort();
+            internalSinkConnect(getWebEndpoint(), hubPort);
+        }
+    }
+
+    @Override
+    public void stopGlobalRecording() {
+        if (hubPort != null) {
+            internalSinkDisconnect(getWebEndpoint(), hubPort);
+            hubPort = null;
+        }
     }
 
     /**
@@ -66,7 +82,7 @@ public class PublisherEndpoint extends MediaEndpoint implements IPublisherEndpoi
      * @param mediaSpecType
      */
     @Override
-    public void startRecording(final String fileName, final MediaProfileSpecType mediaSpecType, final Long callStreamId) {
+    public void startRecording(final String fileName, final MediaProfileSpecType mediaSpecType, final Long callStreamId, final Continuation<Void> continuation) {
         if (recorderEndpoint == null) {
             // Add the endpoint to the pipeline
             this.callStreamId = callStreamId;
@@ -75,7 +91,7 @@ public class PublisherEndpoint extends MediaEndpoint implements IPublisherEndpoi
             connect(recorderEndpoint);
 
             // Start the recording
-            recorderEndpoint.record();
+            recorderEndpoint.record(continuation);
         }
     }
 
@@ -83,9 +99,9 @@ public class PublisherEndpoint extends MediaEndpoint implements IPublisherEndpoi
      * Stops the stream recording
      */
     @Override
-    public void stopRecording() {
+    public void stopRecording(final Continuation<Void> continuation) {
         if (recorderEndpoint != null) {
-            recorderEndpoint.stop();
+            recorderEndpoint.stop(continuation);
 
             // Remove the node from the pipeline
             disconnectFrom(recorderEndpoint);
@@ -93,6 +109,11 @@ public class PublisherEndpoint extends MediaEndpoint implements IPublisherEndpoi
             recorderEndpoint = null;
             callStreamId = null;
         }
+    }
+
+    @Override
+    public HubPort getHubPort() {
+        return hubPort;
     }
 
     @Override

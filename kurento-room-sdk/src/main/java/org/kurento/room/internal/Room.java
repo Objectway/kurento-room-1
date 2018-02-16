@@ -25,6 +25,7 @@ import org.kurento.room.interfaces.IParticipant;
 import org.kurento.room.interfaces.IRoom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import java.util.Collection;
 import java.util.Enumeration;
@@ -84,6 +85,36 @@ public class Room implements IRoom {
     @Override
     public String getName() {
         return name;
+    }
+
+    @Override
+    public HubPort allocateHubPort() {
+        return null;
+    }
+
+    @Override
+    public void startGlobalRecording(String pathName) {
+        throw new NotImplementedException();
+    }
+
+    @Override
+    public void stopGlobalRecording() {
+        throw new NotImplementedException();
+    }
+
+    @Override
+    public Composite getComposite() {
+        return null;
+    }
+
+    @Override
+    public HubPort getHubPort() {
+        return null;
+    }
+
+    @Override
+    public RecorderEndpoint getRecorderEndpoint() {
+        return null;
     }
 
     @Override

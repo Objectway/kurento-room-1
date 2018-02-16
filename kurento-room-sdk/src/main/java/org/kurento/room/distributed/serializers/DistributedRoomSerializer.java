@@ -42,6 +42,9 @@ public class DistributedRoomSerializer implements StreamSerializer<DistributedRo
         out.writeBoolean(distributedRoom.getDestroyKurentoClient());
         out.writeBoolean(distributedRoom.isClosed());
         out.writeObject(DistributedRemoteObject.fromKurentoObject(distributedRoom.getPipeline(), DistributedRemoteObject.MEDIAPIPELINE_CLASSNAME, distributedRoom.getKmsUri()));
+        out.writeObject(DistributedRemoteObject.fromKurentoObject(distributedRoom.getComposite(), DistributedRemoteObject.COMPOSITE_CLASSNAME, distributedRoom.getKmsUri()));
+        out.writeObject(DistributedRemoteObject.fromKurentoObject(distributedRoom.getHubPort(), DistributedRemoteObject.HUBPORT_CLASSNAME, distributedRoom.getKmsUri()));
+        out.writeObject(DistributedRemoteObject.fromKurentoObject(distributedRoom.getRecorderEndpoint(), DistributedRemoteObject.RECORDERENDPOINT_CLASSNAME, distributedRoom.getKmsUri()));
     }
 
     @Override
@@ -52,9 +55,12 @@ public class DistributedRoomSerializer implements StreamSerializer<DistributedRo
         boolean destroyKurentoClient = in.readBoolean();
         boolean closed = in.readBoolean();
         DistributedRemoteObject pipelineInfo = (DistributedRemoteObject) in.readObject();
-        KurentoClient client = kmsManager.getKurentoClient(kmsUri);
+        DistributedRemoteObject compositeInfo = (DistributedRemoteObject) in.readObject();
+        DistributedRemoteObject hubPortInfo = (DistributedRemoteObject) in.readObject();
+        DistributedRemoteObject recorderInfo = (DistributedRemoteObject) in.readObject();
 
-        DistributedRoom distributedRoom = (DistributedRoom) context.getBean("distributedRoom", roomName, client, destroyKurentoClient, closed, pipelineInfo);
+        KurentoClient client = kmsManager.getKurentoClient(kmsUri);
+        DistributedRoom distributedRoom = (DistributedRoom) context.getBean("distributedRoom", roomName, client, destroyKurentoClient, closed, pipelineInfo, compositeInfo, hubPortInfo, recorderInfo);
         distributedRoom.setListener((DistributedRoomManager) context.getBean("roomManager"));
         return distributedRoom;
     }

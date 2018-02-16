@@ -38,6 +38,7 @@ import java.util.concurrent.TimeUnit;
 @Scope("prototype")
 public class DistributedParticipant implements IParticipant, IChangeListener<DistributedMediaEndpoint> {
     private static final Logger log = LoggerFactory.getLogger(DistributedParticipant.class);
+
     @Autowired
     private HazelcastInstance hazelcastInstance;
 
@@ -62,7 +63,6 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
 
     //    private IMap<String, ICountDownLatch> publisherLatches;
     private IMap<String, Boolean> publishersStreamingFlags;
-
 
     @PostConstruct
     public void init() {

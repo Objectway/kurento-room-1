@@ -1,7 +1,6 @@
 package org.kurento.room.interfaces;
 
-import org.kurento.client.IceCandidate;
-import org.kurento.client.MediaPipeline;
+import org.kurento.client.*;
 import org.kurento.room.exception.RoomException;
 
 import java.util.Collection;
@@ -16,6 +15,28 @@ public interface IRoom {
      * @return
      */
     String getKmsUri();
+
+    /**
+     * Allocates a HubPort (used for composite recording)
+     * @return
+     */
+    HubPort allocateHubPort();
+
+    /**
+     * Begins the global recording, if not already started
+     * @param pathName
+     */
+    void startGlobalRecording(final String pathName);
+
+    /**
+     * Stops the global recording.
+     * Note: don't call startGlobalRecording once stopGlobalRecording has been called.
+     */
+    void stopGlobalRecording();
+
+    Composite getComposite();
+    HubPort getHubPort();
+    RecorderEndpoint getRecorderEndpoint();
 
     String getName();
     MediaPipeline getPipeline();
