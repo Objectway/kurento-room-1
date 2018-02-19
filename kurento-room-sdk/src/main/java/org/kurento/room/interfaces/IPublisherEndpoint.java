@@ -29,12 +29,12 @@ public interface IPublisherEndpoint extends IMediaEndpoint {
     /**
      * Adds the track to the room's Composite Media Element
      */
-    void startGlobalRecording();
+    void addTrackToGlobalRecording();
 
     /**
      * Removes the track from the room's Composite Media Element
      */
-    void stopGlobalRecording();
+    void removeTrackFromGlobalRecording();
 
     HubPort getHubPort();
 

@@ -151,6 +151,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
                 return;
             }
 
+            log.debug("Stopping global recording for room {}...", name);
             recorderEndpoint.stop();
         } finally {
             pipelineCreateLock.unlock();
@@ -450,7 +451,14 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             if (pipeline == null || pipelineReleased) {
                 return;
             }
+
             getPipeline().release();
+
+            // The pipeline also releases the other MediaElements, so no need
+            // to call .release() on these objects
+            compositeElement = null;
+            compositeRecorderPort = null;
+            recorderEndpoint = null;
             pipelineReleased = true;
 //            getPipeline().release(new Continuation<Void>() {
 //

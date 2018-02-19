@@ -60,7 +60,7 @@ public class PublisherEndpoint extends MediaEndpoint implements IPublisherEndpoi
     }
 
     @Override
-    public void startGlobalRecording() {
+    public void addTrackToGlobalRecording() {
         if (hubPort == null) {
             hubPort = this.getOwner().getRoom().allocateHubPort();
             internalSinkConnect(getWebEndpoint(), hubPort);
@@ -68,7 +68,7 @@ public class PublisherEndpoint extends MediaEndpoint implements IPublisherEndpoi
     }
 
     @Override
-    public void stopGlobalRecording() {
+    public void removeTrackFromGlobalRecording() {
         if (hubPort != null) {
             internalSinkDisconnect(getWebEndpoint(), hubPort);
             hubPort = null;

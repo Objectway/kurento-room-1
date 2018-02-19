@@ -73,8 +73,9 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
     }
 
     @Override
-    public void startGlobalRecording() {
+    public void addTrackToGlobalRecording() {
         if (hubPort == null) {
+            log.debug("Adding participant {} stream {} to global recording...", getOwner().getName(), getStreamId());
             hubPort = this.getOwner().getRoom().allocateHubPort();
             internalSinkConnect(passThru, hubPort);
 
@@ -84,8 +85,9 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
     }
 
     @Override
-    public void stopGlobalRecording() {
+    public void removeTrackFromGlobalRecording() {
         if (hubPort != null) {
+            log.debug("Removing participant {} stream {} from global recording...", getOwner().getName(), getStreamId());
             internalSinkDisconnect(passThru, hubPort);
             hubPort = null;
 
