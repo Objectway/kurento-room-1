@@ -11,9 +11,32 @@ import java.util.Collection;
  * Created by sturiale on 07/12/16.
  */
 public interface IPublisherEndpoint extends IMediaEndpoint {
-    void startRecording(String fileName, MediaProfileSpecType mediaSpecType, Long callStreamId);
+    /**
+     * Starts recording the stream (individual track)
+     *
+     * @param fileName
+     * @param mediaSpecType
+     */
 
-    void stopRecording();
+    void startRecording(String fileName, MediaProfileSpecType mediaSpecType, Long callStreamId, final Continuation<Void> continuation);
+
+    /**
+     * Stops the stream recording (individual track)
+     */
+    void stopRecording(final Continuation<Void> continuation);
+
+
+    /**
+     * Adds the track to the room's Composite Media Element
+     */
+    void addTrackToGlobalRecording();
+
+    /**
+     * Removes the track from the room's Composite Media Element
+     */
+    void removeTrackFromGlobalRecording();
+
+    HubPort getHubPort();
 
     Long getCallStreamId();
 

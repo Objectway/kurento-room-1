@@ -20,8 +20,12 @@ import org.springframework.context.annotation.Scope;
 public class DistributedConfig {
     @Bean
     @Scope("prototype")
-    public DistributedRoom distributedRoom(final String roomName, final KurentoClient kurentoClient, final boolean destroyKurentoClient, final boolean closed, final DistributedRemoteObject pipelineInfo) {
-        return new DistributedRoom(roomName, kurentoClient, destroyKurentoClient, closed, pipelineInfo);
+    public DistributedRoom distributedRoom(final String roomName, final KurentoClient kurentoClient, final boolean destroyKurentoClient, final boolean closed,
+                                           final DistributedRemoteObject pipelineInfo,
+                                           final DistributedRemoteObject compositeInfo,
+                                           final DistributedRemoteObject hubportInfo,
+                                           final DistributedRemoteObject recorderInfo) {
+        return new DistributedRoom(roomName, kurentoClient, destroyKurentoClient, closed, pipelineInfo, compositeInfo, hubportInfo, recorderInfo);
     }
 
     @Bean
@@ -48,6 +52,7 @@ public class DistributedConfig {
                                                                      DistributedRemoteObject rtpEndpointInfo,
                                                                      DistributedRemoteObject recEndpointInfo,
                                                                      DistributedRemoteObject passThrouInfo,
+                                                                     DistributedRemoteObject hubportInfo,
                                                                      String roomName,
                                                                      String participantId,
                                                                      MutedMediaType muteType,
@@ -55,7 +60,7 @@ public class DistributedConfig {
                                                                      Long callStreamId,
                                                                      IRoomManager roomManager) {
         return new DistributedPublisherEndpoint(web, dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo,
-                rtpEndpointInfo, recEndpointInfo, passThrouInfo, roomName, participantId, muteType, connected, callStreamId, roomManager);
+                rtpEndpointInfo, recEndpointInfo, passThrouInfo, hubportInfo, roomName, participantId, muteType, connected, callStreamId, roomManager);
     }
 
     @Bean

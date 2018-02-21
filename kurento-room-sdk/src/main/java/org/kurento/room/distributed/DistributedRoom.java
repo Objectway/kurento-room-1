@@ -3,7 +3,6 @@ package org.kurento.room.distributed;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ILock;
 import com.hazelcast.core.IMap;
-import com.hazelcast.map.EntryProcessor;
 import com.hazelcast.mapreduce.aggregation.Aggregations;
 import com.hazelcast.mapreduce.aggregation.Supplier;
 import org.kurento.client.*;
@@ -27,15 +26,12 @@ import java.util.Collection;
 import java.util.Enumeration;
 import java.util.Set;
 
-
 /**
  * Created by sturiale on 02/12/16.
  */
-
 @Component
 @Scope("prototype")
 public class DistributedRoom implements IRoom, IChangeListener<DistributedParticipant> {
-    public static final int ASYNC_LATCH_TIMEOUT = 30;
     private final static Logger log = LoggerFactory.getLogger(DistributedRoom.class);
 
     @Autowired
@@ -65,6 +61,11 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
     private ILock pipelineCreateLock;
     private ILock roomLock;
 
+    // Composite and recorder endpoint used for registrations
+    private Composite compositeElement = null;
+    private HubPort compositeRecorderPort = null;
+    private RecorderEndpoint recorderEndpoint = null;
+
     @PostConstruct
     public void init() {
         participants = hazelcastInstance.getMap(distributedNamingService.getName("participants-" + name));
@@ -72,7 +73,6 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         pipelineReleaseLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineReleaseLock-" + name));
         roomLock = hazelcastInstance.getLock(distributedNamingService.getName("lock-room-" + name));
     }
-
 
     /**
      * Destroys the hazelcast resources.
@@ -86,25 +86,81 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     public DistributedRoom(String roomName, KurentoClient kurentoClient,
                            boolean destroyKurentoClient) {
-
         this.name = roomName;
         this.kurentoClient = kurentoClient;
         this.destroyKurentoClient = destroyKurentoClient;
         this.kmsUri = ReflectionUtils.getKmsUri(kurentoClient);
-         log.info("KMS: Using kmsUri {} for {}", kmsUri, roomName);
         // log.debug("New DistributedRoom instance, named '{}'", roomName);
     }
 
     public DistributedRoom(String roomName, KurentoClient kurentoClient,
-                           boolean destroyKurentoClient, boolean closed, DistributedRemoteObject pipelineInfo) {
+                           boolean destroyKurentoClient, boolean closed,
+                           DistributedRemoteObject pipelineInfo,
+                           DistributedRemoteObject compositeInfo,
+                           DistributedRemoteObject hubportInfo,
+                           DistributedRemoteObject recorderInfo) {
         this(roomName, kurentoClient, destroyKurentoClient);
         this.closed = closed;
-        this.setPipelineFromInfo(pipelineInfo);
+        this.pipeline = DistributedRemoteObject.retrieveFromInfo(pipelineInfo, kurentoClient);
+        this.compositeElement = DistributedRemoteObject.retrieveFromInfo(compositeInfo, kurentoClient);
+        this.compositeRecorderPort = DistributedRemoteObject.retrieveFromInfo(hubportInfo, kurentoClient);
+        this.recorderEndpoint = DistributedRemoteObject.retrieveFromInfo(recorderInfo, kurentoClient);
         // log.debug("New DistributedRoom deserialized instance, named '{}'", roomName);
     }
 
     @Override
-    public String getName() {
+    public HubPort allocateHubPort() {
+        return new HubPort.Builder(compositeElement).build();
+    }
+
+    @Override
+    public void startGlobalRecording(final String pathName) {
+        // We reuse the pipeline lock
+        pipelineCreateLock.lock();
+
+        try {
+            if (recorderEndpoint != null) {
+                return;
+            }
+
+            log.info("ROOM {}: Creating Composite node for recording", name);
+
+            // Create the elements needed for global recording
+            compositeElement = new Composite.Builder(pipeline).build();
+            compositeRecorderPort = new HubPort.Builder(compositeElement).build();
+            recorderEndpoint = new RecorderEndpoint.Builder(pipeline, pathName).stopOnEndOfStream().build();
+            compositeRecorderPort.connect(recorderEndpoint);
+
+            // Start the record
+            recorderEndpoint.record();
+        } catch (Exception e) {
+            log.error("Unable to create Composite node for room '{}'", name, e);
+        } finally {
+            pipelineCreateLock.unlock();
+            listener.onChange(this);
+        }
+    }
+
+    @Override
+    public void stopGlobalRecording() {
+        // We reuse the pipeline lock
+        pipelineCreateLock.lock();
+
+        try {
+            if (recorderEndpoint == null) {
+                return;
+            }
+
+            log.debug("Stopping global recording for room {}...", name);
+            recorderEndpoint.stop();
+        } finally {
+            pipelineCreateLock.unlock();
+            listener.onChange(this);
+        }
+    }
+
+    @Override
+     public String getName() {
         return name;
     }
 
@@ -126,6 +182,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     @Override
     public void join(String participantId, String userName, boolean dataChannels, boolean webParticipant) throws RoomException {
+        log.info("KMS: Using kmsUri {} for {}", kmsUri, name);
         roomLock.lock();
 
         try {
@@ -155,7 +212,6 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         } finally {
             roomLock.unlock();
         }
-
     }
 
     @Override
@@ -252,7 +308,6 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
     @Override
     public void close() {
         if (!closed) {
-
             for (DistributedParticipant user : participants.values()) {
                 user.close();
                 user.destroyHazelcastResources();
@@ -338,17 +393,21 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     private void createPipeline() {
         pipelineCreateLock.lock();
+
         try {
             if (pipeline != null) {
                 return;
             }
+
             log.info("ROOM {}: Creating MediaPipeline", name);
             try {
                 // This method must not be called when we do not have a KMS provider!
                 if (kurentoClient == null) {
                     throw new Exception("Cannot create a media pipeline without a KMS!");
                 }
-                this.pipeline = kurentoClient.createMediaPipeline();
+
+                // Create the pipeline
+                pipeline = kurentoClient.createMediaPipeline();
 
 //                kurentoClient.createMediaPipeline(new Continuation<MediaPipeline>() {
 //                    @Override
@@ -369,16 +428,13 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 //                pipelineLatch.countDown();
             }
             if (getPipeline() == null) {
-                throw new RoomException(RoomException.Code.ROOM_CANNOT_BE_CREATED_ERROR_CODE,
-                        "Unable to create media pipeline for room '" + name + "'");
+                throw new RoomException(RoomException.Code.ROOM_CANNOT_BE_CREATED_ERROR_CODE, "Unable to create media pipeline for room '" + name + "'");
             }
 
             pipeline.addErrorListener(new EventListener<ErrorEvent>() {
                 @Override
                 public void onEvent(ErrorEvent event) {
-                    String desc =
-                            event.getType() + ": " + event.getDescription() + "(errCode=" + event.getErrorCode()
-                                    + ")";
+                    final String desc = event.getType() + ": " + event.getDescription() + "(errCode=" + event.getErrorCode() + ")";
                     log.warn("ROOM {}: Pipeline error encountered: {}", name, desc);
                     roomHandler.onPipelineError(name, (Collection<IParticipant>) getParticipants(), desc);
                 }
@@ -387,7 +443,6 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             pipelineCreateLock.unlock();
             listener.onChange(this);
         }
-
     }
 
     private void closePipeline() {
@@ -396,7 +451,14 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             if (pipeline == null || pipelineReleased) {
                 return;
             }
+
             getPipeline().release();
+
+            // The pipeline also releases the other MediaElements, so no need
+            // to call .release() on these objects
+            compositeElement = null;
+            compositeRecorderPort = null;
+            recorderEndpoint = null;
             pipelineReleased = true;
 //            getPipeline().release(new Continuation<Void>() {
 //
@@ -434,25 +496,6 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         return destroyKurentoClient;
     }
 
-    private void setPipelineFromInfo(DistributedRemoteObject pipelineInfo) {
-        if (pipelineInfo != null) {
-            try {
-                final Class<KurentoObject> clazz = (Class<KurentoObject>) Class.forName(pipelineInfo.getClassName());
-
-                // We always have a KurentoObject as a result, even if it does not exist in the KMS
-                pipeline = (MediaPipeline) kurentoClient.getById(pipelineInfo.getObjectRef(), clazz);
-
-//                pipelineLatch.countDown();
-            } catch (ClassNotFoundException ex) {
-                log.error(ex.toString());
-            } catch (Exception e) {
-                // Try to invoke this endpoint with objectRef ending in ".MediaPipelinez" to trigger
-                //      org.kurento.client.internal.server.ProtocolException: Exception creating Java Class for 'kurento.MediaPipelinez'
-                log.error(e.toString());
-            }
-        }
-    }
-
     public void setListener(IChangeListener<DistributedRoom> listener) {
         this.listener = listener;
     }
@@ -462,4 +505,12 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         participants.set(participant.getId(), participant);
     }
 
+    @Override
+    public Composite getComposite() { return compositeElement; }
+
+    @Override
+    public HubPort getHubPort() { return compositeRecorderPort; }
+
+    @Override
+    public RecorderEndpoint getRecorderEndpoint() { return recorderEndpoint; }
 }

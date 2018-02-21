@@ -1,10 +1,8 @@
 package org.kurento.room.distributed.model.endpoint;
 
-
 import org.kurento.client.*;
 import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.distributed.DistributedParticipant;
-import org.kurento.room.distributed.interfaces.IChangeListener;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.endpoint.SdpType;
 import org.kurento.room.exception.RoomException;
@@ -29,10 +27,12 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
 
     private PassThrough passThru = null;
     private ListenerSubscription passThruSubscription = null;
-
     private boolean connected = false;
 
-    // An (optional) recorder endpoint
+    // HubPort used to global track recording
+    private HubPort hubPort = null;
+
+    // Recorder endpoint used for local track recording
     private RecorderEndpoint recorderEndpoint = null;
     private Long callStreamId = null;
 
@@ -52,6 +52,7 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
                                         DistributedRemoteObject rtpEndpointInfo,
                                         DistributedRemoteObject recEndpointInfo,
                                         DistributedRemoteObject passThrouInfo,
+                                        DistributedRemoteObject hubportInfo,
                                         String roomName,
                                         String participantId,
                                         MutedMediaType muteType,
@@ -61,61 +62,64 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
         super(web, dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo, rtpEndpointInfo, roomName, participantId, muteType, roomManager, log);
         this.connected = connected;
         this.callStreamId = callStreamId;
-        try {
-            if (recEndpointInfo != null) {
-                final Class<KurentoObject> clazz = (Class<KurentoObject>) Class.forName(recEndpointInfo.getClassName());
-                this.recorderEndpoint = (RecorderEndpoint) kurentoClient.getById(recEndpointInfo.getObjectRef(), clazz);
-            }
-            if (passThrouInfo != null) {
-                final Class<KurentoObject> clazz = (Class<KurentoObject>) Class.forName(passThrouInfo.getClassName());
-                this.passThru = (PassThrough) kurentoClient.getById(passThrouInfo.getObjectRef(), clazz);
-//                passThruSubscription = registerElemErrListener(passThru);
-            }
-
-            // We always have a KurentoObject as a result, even if it does not exist in the KMS
-
-        } catch (ClassNotFoundException ex) {
-            log.error(ex.toString());
-        } catch (Exception e) {
-            // Try to invoke this endpoint with objectRef ending in ".MediaPipelinez" to trigger
-            //      org.kurento.client.internal.server.ProtocolException: Exception creating Java Class for 'kurento.MediaPipelinez'
-            log.error(e.toString());
-        }
+        this.recorderEndpoint = DistributedRemoteObject.retrieveFromInfo(recEndpointInfo, kurentoClient);
+        this.passThru = DistributedRemoteObject.retrieveFromInfo(passThrouInfo, kurentoClient);
+        this.hubPort = DistributedRemoteObject.retrieveFromInfo(hubportInfo, kurentoClient);
     }
 
-    /**
-     * Starts recording the stream
-     *
-     * @param fileName
-     * @param mediaSpecType
-     */
     @Override
-    public void startRecording(final String fileName, final MediaProfileSpecType mediaSpecType, final Long callStreamId) {
-        if (recorderEndpoint == null) {
-            // Add the endpoint to the pipeline
-            this.callStreamId = callStreamId;
+    public HubPort getHubPort() {
+        return hubPort;
+    }
 
-            recorderEndpoint = new RecorderEndpoint.Builder(getPipeline(), fileName).withMediaProfile(mediaSpecType).build();
-            connect(recorderEndpoint);
-
-            // Start the recording
-            recorderEndpoint.record();
+    @Override
+    public void addTrackToGlobalRecording() {
+        if (hubPort == null) {
+            log.debug("Adding participant {} stream {} to global recording...", getOwner().getName(), getStreamId());
+            hubPort = this.getOwner().getRoom().allocateHubPort();
+            internalSinkConnect(passThru, hubPort);
 
             // Signal the participant that this endpoint data has changed
             listener.onChange(this);
         }
     }
 
-    /**
-     * Stops the stream recording
-     */
     @Override
-    public void stopRecording() {
+    public void removeTrackFromGlobalRecording() {
+        if (hubPort != null) {
+            log.debug("Removing participant {} stream {} from global recording...", getOwner().getName(), getStreamId());
+            internalSinkDisconnect(passThru, hubPort);
+            hubPort = null;
+
+            // Signal the participant that this endpoint data has changed
+            listener.onChange(this);
+        }
+    }
+
+    @Override
+    public void startRecording(final String fileName, final MediaProfileSpecType mediaSpecType, final Long callStreamId, final Continuation<Void> continuation) {
+        if (recorderEndpoint == null) {
+            // Add the endpoint to the pipeline
+            this.callStreamId = callStreamId;
+
+            recorderEndpoint = new RecorderEndpoint.Builder(getPipeline(), fileName).withMediaProfile(mediaSpecType).build();
+            internalSinkConnect(getWebEndpoint(), recorderEndpoint);
+
+            // Start the recording
+            recorderEndpoint.record(continuation);
+
+            // Signal the participant that this endpoint data has changed
+            listener.onChange(this);
+        }
+    }
+
+    @Override
+    public void stopRecording(final Continuation<Void> continuation) {
         if (recorderEndpoint != null) {
-            recorderEndpoint.stop();
+            recorderEndpoint.stop(continuation);
 
             // Remove the node from the pipeline
-            disconnectFrom(recorderEndpoint);
+            internalSinkDisconnect(getWebEndpoint(), recorderEndpoint);
 
             recorderEndpoint = null;
             callStreamId = null;
@@ -277,7 +281,6 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
     public void revert(MediaElement shaper, boolean ùElement) throws RoomException {
         throw new NotImplementedException();
     }
-
 
     @Override
     public void mute(MutedMediaType muteType) {
@@ -443,5 +446,4 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
     public RecorderEndpoint getRecorderEndpoint() {
         return recorderEndpoint;
     }
-
 }

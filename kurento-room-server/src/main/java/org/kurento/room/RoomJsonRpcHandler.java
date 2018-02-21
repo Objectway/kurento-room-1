@@ -76,7 +76,7 @@ public class RoomJsonRpcHandler extends DefaultJsonRpcHandler<JsonObject> {
     log.debug("Session #{} - request: {}", sessionId, request);
 
     notificationService.addTransaction(transaction, request);
-
+    notificationService.logSessionsSizes();
     ParticipantRequest participantRequest = new ParticipantRequest(sessionId,
         Integer.toString(request.getId()));
 
