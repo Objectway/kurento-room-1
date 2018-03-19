@@ -26,17 +26,7 @@ import org.kurento.client.IceCandidate;
 import org.kurento.jsonrpc.DefaultJsonRpcHandler;
 import org.kurento.jsonrpc.Transaction;
 import org.kurento.jsonrpc.message.Request;
-import org.kurento.room.client.internal.IceCandidateInfo;
-import org.kurento.room.client.internal.JsonRoomUtils;
-import org.kurento.room.client.internal.MediaErrorInfo;
-import org.kurento.room.client.internal.Notification;
-import org.kurento.room.client.internal.ParticipantEvictedInfo;
-import org.kurento.room.client.internal.ParticipantJoinedInfo;
-import org.kurento.room.client.internal.ParticipantLeftInfo;
-import org.kurento.room.client.internal.ParticipantPublishedInfo;
-import org.kurento.room.client.internal.ParticipantUnpublishedInfo;
-import org.kurento.room.client.internal.RoomClosedInfo;
-import org.kurento.room.client.internal.SendMessageInfo;
+import org.kurento.room.client.internal.*;
 import org.kurento.room.internal.ProtocolElements;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -88,7 +78,10 @@ public class ServerJsonRpcHandler extends DefaultJsonRpcHandler<JsonObject> {
         case ProtocolElements.PARTICIPANTSENDMESSAGE_METHOD :
           notif = participantSendMessage(transaction, request);
           break;
-        default :
+        case ProtocolElements.CUSTOM_NOTIFICATION:
+          notif = customNotification(transaction, request);
+          break;
+        default:
           throw new Exception("Unrecognized request " + request.getMethod());
       }
     } catch (Exception e) {
@@ -115,6 +108,12 @@ public class ServerJsonRpcHandler extends DefaultJsonRpcHandler<JsonObject> {
         ProtocolElements.PARTICIPANTSENDMESSAGE_MESSAGE_PARAM, String.class);
     SendMessageInfo eventInfo = new SendMessageInfo(room, user, message);
     log.debug("Recvd send message event {}", eventInfo);
+    return eventInfo;
+  }
+
+  private Notification customNotification(Transaction transaction, Request<JsonObject> request) {
+    CustomNotificationInfo eventInfo = new CustomNotificationInfo(request.getParams());
+    log.debug("Recvd custom notification {}", eventInfo);
     return eventInfo;
   }
 
