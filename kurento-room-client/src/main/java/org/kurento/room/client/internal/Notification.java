@@ -34,7 +34,8 @@ public abstract class Notification {
         ProtocolElements.PARTICIPANTPUBLISHED_METHOD), PARTICIPANTUNPUBLISHED_METHOD(
         ProtocolElements.PARTICIPANTUNPUBLISHED_METHOD), ROOMCLOSED_METHOD(
         ProtocolElements.ROOMCLOSED_METHOD), PARTICIPANTSENDMESSAGE_METHOD(
-        ProtocolElements.PARTICIPANTSENDMESSAGE_METHOD);
+        ProtocolElements.PARTICIPANTSENDMESSAGE_METHOD), CUSTOM_NOTIFICATON(
+        ProtocolElements.CUSTOM_NOTIFICATION);
 
     private String methodValue;
 
