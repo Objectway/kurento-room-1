@@ -4,17 +4,20 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IList;
 import com.hazelcast.core.ILock;
 import org.kurento.client.*;
+import org.kurento.room.TurnClientCredentials;
+import org.kurento.room.TurnKMSCredentials;
 import org.kurento.room.api.MutedMediaType;
-import org.kurento.room.distributed.DistributedNamingService;
 import org.kurento.room.distributed.DistributedParticipant;
 import org.kurento.room.distributed.interfaces.IChangeListener;
 import org.kurento.room.distributed.interfaces.ICountDownLatchWrapper;
+import org.kurento.room.distributed.interfaces.IDistributedNamingService;
 import org.kurento.room.distributed.model.DistributedIceCandidate;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IMediaEndpoint;
 import org.kurento.room.interfaces.IRoom;
 import org.kurento.room.interfaces.IRoomManager;
+import org.kurento.room.interfaces.ITurnProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -33,7 +36,10 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
     private HazelcastInstance hazelcastInstance;
 
     @Autowired
-    private DistributedNamingService namingService;
+    private IDistributedNamingService namingService;
+
+    @Autowired
+    private ITurnProvider turnProvider;
 
     private boolean web = false;
 
@@ -320,16 +326,26 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
      */
     protected void internalEndpointInitialization() {
         if (this.isWeb()) {
+            final TurnKMSCredentials credentials = turnProvider.generateKMSCredentials();
             WebRtcEndpoint.Builder builder = new WebRtcEndpoint.Builder(pipeline);
+//                .with("stunServerAddress", credentials.getStunUrl())
+//                .with("stunServerPort", credentials.getStunPort())
+//                .with("turnUrl", credentials.getTurnUrl())
+//                .with("maxVideoRecvBandwidth", 600)
+//                .with("minVideoRecvBandwidth", 300)
+//                .with("maxVideoSendBandwidth", 600)
+//                .with("minVideoSendBandwidth", 300);
             if (this.dataChannels) {
                 builder.useDataChannels();
             }
             webEndpoint = builder.build();
+            webEndpoint.setStunServerAddress(credentials.getStunUrl());
+            webEndpoint.setStunServerPort(credentials.getStunPort());
+            webEndpoint.setTurnUrl(credentials.getTurnUrl());
             webEndpoint.setMaxVideoRecvBandwidth(600);
             webEndpoint.setMinVideoRecvBandwidth(300);
             webEndpoint.setMaxVideoSendBandwidth(600);
             webEndpoint.setMinVideoSendBandwidth(300);
-
             log.trace("EP {}: Created a new WebRtcEndpoint", endpointName);
             endpointSubscription = registerElemErrListener(webEndpoint);
 
