@@ -138,6 +138,8 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
     protected void internalEndpointInitialization() {
         super.internalEndpointInitialization();
         passThru = new PassThrough.Builder(getPipeline()).build();
+        passThru.setMinOutputBitrate(0); // 0 is considered unconstrained
+        passThru.setMaxOutputBitrate(0); // 0 is considered unconstrained
         passThruSubscription = registerElemErrListener(passThru);
     }
 

@@ -342,10 +342,10 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
             webEndpoint.setStunServerAddress(credentials.getStunUrl());
             webEndpoint.setStunServerPort(credentials.getStunPort());
             webEndpoint.setTurnUrl(credentials.getTurnUrl());
-            webEndpoint.setMaxVideoRecvBandwidth(600);
-            webEndpoint.setMinVideoRecvBandwidth(300);
-            webEndpoint.setMaxVideoSendBandwidth(600);
-            webEndpoint.setMinVideoSendBandwidth(300);
+            webEndpoint.setMaxVideoRecvBandwidth(0); // 0 is considered unconstrained
+            webEndpoint.setMinVideoRecvBandwidth(0); // 0 is considered unconstrained
+            webEndpoint.setMaxVideoSendBandwidth(0); // 0 is considered unconstrained
+            webEndpoint.setMinVideoSendBandwidth(0); // 0 is considered unconstrained
             log.trace("EP {}: Created a new WebRtcEndpoint", endpointName);
             endpointSubscription = registerElemErrListener(webEndpoint);
 
