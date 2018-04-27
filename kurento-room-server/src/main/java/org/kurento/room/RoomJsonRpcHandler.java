@@ -23,6 +23,7 @@ import org.kurento.jsonrpc.Session;
 import org.kurento.jsonrpc.Transaction;
 import org.kurento.jsonrpc.message.Request;
 import org.kurento.room.api.pojo.ParticipantRequest;
+import org.kurento.room.exception.RoomException;
 import org.kurento.room.internal.ProtocolElements;
 import org.kurento.room.rpc.JsonRpcNotificationService;
 import org.kurento.room.rpc.JsonRpcUserControl;
@@ -32,6 +33,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import com.google.gson.JsonObject;
+import org.springframework.beans.factory.annotation.Value;
 
 /**
  * @author Ivan Gracia (izanmail@gmail.com)
@@ -47,9 +49,12 @@ public class RoomJsonRpcHandler extends DefaultJsonRpcHandler<JsonObject> {
   private JsonRpcUserControl userControl;
   private JsonRpcNotificationService notificationService;
 
+  @Value("${kurento.jsonrpc.suppressStackTraces:true}")
+  private Boolean suppressStackTraces;
+
   @Autowired
   public RoomJsonRpcHandler(JsonRpcUserControl userControl,
-      JsonRpcNotificationService notificationService) {
+                            JsonRpcNotificationService notificationService) {
     this.userControl = userControl;
     this.notificationService = notificationService;
   }
@@ -82,40 +87,53 @@ public class RoomJsonRpcHandler extends DefaultJsonRpcHandler<JsonObject> {
 
     transaction.startAsync();
 
-    switch (request.getMethod()) {
-      case ProtocolElements.JOINROOM_METHOD :
-        userControl.joinRoom(transaction, request, participantRequest);
-        break;
-      case ProtocolElements.PUBLISHVIDEO_METHOD :
-        userControl.publishVideo(transaction, request, participantRequest);
-        break;
-      case ProtocolElements.UNPUBLISHVIDEO_METHOD :
-        userControl.unpublishVideo(transaction, request, participantRequest);
-        break;
-      case ProtocolElements.RECEIVEVIDEO_METHOD :
-        userControl.receiveVideoFrom(transaction, request, participantRequest);
-        break;
-      case ProtocolElements.UNSUBSCRIBEFROMVIDEO_METHOD :
-        userControl.unsubscribeFromVideo(transaction, request, participantRequest);
-        break;
-      case ProtocolElements.ONICECANDIDATE_METHOD :
-        userControl.onIceCandidate(transaction, request, participantRequest);
-        break;
-      case ProtocolElements.LEAVEROOM_METHOD :
-        userControl.leaveRoom(transaction, request, participantRequest);
-        break;
-      case ProtocolElements.SENDMESSAGE_ROOM_METHOD :
-        userControl.sendMessage(transaction, request, participantRequest);
-        break;
-      case ProtocolElements.CUSTOMREQUEST_METHOD :
-        userControl.customRequest(transaction, request, participantRequest);
-        break;
-      default :
-        log.error("Unrecognized request {}", request);
-        break;
-    }
+    try {
+      switch (request.getMethod()) {
+        case ProtocolElements.JOINROOM_METHOD:
+          userControl.joinRoom(transaction, request, participantRequest);
+          break;
+        case ProtocolElements.PUBLISHVIDEO_METHOD:
+          userControl.publishVideo(transaction, request, participantRequest);
+          break;
+        case ProtocolElements.UNPUBLISHVIDEO_METHOD:
+          userControl.unpublishVideo(transaction, request, participantRequest);
+          break;
+        case ProtocolElements.RECEIVEVIDEO_METHOD:
+          userControl.receiveVideoFrom(transaction, request, participantRequest);
+          break;
+        case ProtocolElements.UNSUBSCRIBEFROMVIDEO_METHOD:
+          userControl.unsubscribeFromVideo(transaction, request, participantRequest);
+          break;
+        case ProtocolElements.ONICECANDIDATE_METHOD:
+          userControl.onIceCandidate(transaction, request, participantRequest);
+          break;
+        case ProtocolElements.LEAVEROOM_METHOD:
+          userControl.leaveRoom(transaction, request, participantRequest);
+          break;
+        case ProtocolElements.SENDMESSAGE_ROOM_METHOD:
+          userControl.sendMessage(transaction, request, participantRequest);
+          break;
+        case ProtocolElements.CUSTOMREQUEST_METHOD:
+          userControl.customRequest(transaction, request, participantRequest);
+          break;
+        default:
+          log.error("Unrecognized request {}", request);
+          break;
+      }
 
-    updateThreadName(HANDLER_THREAD_NAME);
+      updateThreadName(HANDLER_THREAD_NAME);
+    } catch (Exception e) {
+      if (suppressStackTraces.equals(Boolean.TRUE)) {
+        // Instead of bubbling up the exception, we send a standardized error response!
+        notificationService.sendErrorResponse(participantRequest, null, new RoomException(
+          RoomException.Code.GENERIC_ERROR_CODE,
+          "Internal server error"
+        ));
+      } else {
+        // Nope, just rethrow
+        throw e;
+      }
+    }
   }
 
   @Override
