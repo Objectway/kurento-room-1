@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.kurento</groupId>
 		<artifactId>kurento-room-ow</artifactId>
-		<version>9.4.1-RC0</version>
+		<version>9.5.0-RC0</version>
 	</parent>
 
 	<artifactId>kurento-room-client-js-ow</artifactId>
