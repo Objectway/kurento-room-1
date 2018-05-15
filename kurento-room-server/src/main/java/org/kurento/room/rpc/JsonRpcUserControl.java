@@ -178,7 +178,7 @@ public class JsonRpcUserControl {
   }
 
   public void customRequest(Transaction transaction, Request<JsonObject> request,
-      ParticipantRequest participantRequest) {
+      ParticipantRequest participantRequest) throws Exception {
     throw new RuntimeException("Unsupported method");
   }
 
