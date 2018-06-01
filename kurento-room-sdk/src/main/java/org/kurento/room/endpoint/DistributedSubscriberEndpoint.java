@@ -1,16 +1,15 @@
-package org.kurento.room.distributed.model.endpoint;
+package org.kurento.room.endpoint;
 
 import org.kurento.client.KurentoClient;
 import org.kurento.client.MediaPipeline;
 import org.kurento.client.MediaType;
-import org.kurento.room.RoomManager;
 import org.kurento.room.api.MutedMediaType;
-import org.kurento.room.distributed.DistributedParticipant;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IPublisherEndpoint;
 import org.kurento.room.interfaces.IRoomManager;
 import org.kurento.room.interfaces.ISubscriberEndpoint;
+import org.kurento.room.internal.DistributedParticipant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

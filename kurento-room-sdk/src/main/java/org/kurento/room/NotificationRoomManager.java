@@ -122,12 +122,10 @@ public class NotificationRoomManager {
 
   /**
    * @param request instance of {@link ParticipantRequest} POJO
-   * @see RoomManager#publishMedia(String, boolean, String, MediaElement, MediaType, boolean, *
-   * MediaElement...)
+   * @see RoomManager#publishMedia(String, boolean, String, MediaElement, MediaType, boolean, *)
    */
   public void publishMedia(ParticipantRequest request, final String streamId, final String streamType, boolean isOffer, String sdp,
-      MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType, boolean doLoopback,
-      MediaElement... mediaElements) {
+      MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType, boolean doLoopback) {
     String pid = request.getParticipantId();
     String userName = null;
     Set<UserParticipant> participants = null;
@@ -135,7 +133,7 @@ public class NotificationRoomManager {
     try {
       userName = internalManager.getParticipantName(pid);
       sdpAnswer = internalManager.publishMedia(request.getParticipantId(), streamId, streamType, isOffer, sdp,
-          loopbackAlternativeSrc, loopbackConnectionType, doLoopback, mediaElements);
+          loopbackAlternativeSrc, loopbackConnectionType, doLoopback);
       participants = internalManager.getParticipants(internalManager.getRoomName(pid));
     } catch (RoomException e) {
       log.warn("PARTICIPANT {}: Error publishing media", userName, e);
@@ -148,11 +146,10 @@ public class NotificationRoomManager {
 
   /**
    * @param request instance of {@link ParticipantRequest} POJO
-   * @see RoomManager#publishMedia(String, String, boolean, MediaElement...)
+   * @see RoomManager#publishMedia(String, String, boolean)
    */
-  public void publishMedia(ParticipantRequest request, final String streamId, final String streamType, String sdpOffer, boolean doLoopback,
-      MediaElement... mediaElements) {
-    this.publishMedia(request, streamId, streamType, true, sdpOffer, null, null, doLoopback, mediaElements);
+  public void publishMedia(ParticipantRequest request, final String streamId, final String streamType, String sdpOffer, boolean doLoopback) {
+    this.publishMedia(request, streamId, streamType, true, sdpOffer, null, null, doLoopback);
   }
 
   /**
@@ -375,28 +372,6 @@ public class NotificationRoomManager {
   }
 
   /**
-   * @see RoomManager#addMediaElement(String, MediaElement)
-   */
-  public void addMediaElement(String participantId, final String streamId, MediaElement element) throws RoomException {
-    internalManager.addMediaElement(participantId, streamId, element, null);
-  }
-
-  /**
-   * @see RoomManager#addMediaElement(String, MediaElement, MediaType)
-   */
-  public void addMediaElement(String participantId, final String streamId, MediaElement element, MediaType type)
-      throws RoomException {
-    internalManager.addMediaElement(participantId, streamId, element, type);
-  }
-
-  /**
-   * @see RoomManager#removeMediaElement(String, MediaElement)
-   */
-  public void removeMediaElement(String participantId, final String streamId, MediaElement element) throws RoomException {
-    internalManager.removeMediaElement(participantId, streamId, element);
-  }
-
-  /**
    * @see RoomManager#mutePublishedMedia(MutedMediaType, String)
    */
   public void mutePublishedMedia(MutedMediaType muteType, String participantId, final String streamId)
@@ -428,9 +403,5 @@ public class NotificationRoomManager {
 
   public IRoomManager getRoomManager() {
     return internalManager;
-  }
-
-  public void updateFilter(String roomId, String filterId) {
-    internalManager.updateFilter(roomId, filterId);
   }
 }

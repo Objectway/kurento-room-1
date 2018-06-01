@@ -97,7 +97,7 @@ public interface NotificationRoomHandler extends RoomHandler {
 
   /**
    * Called as a result of
-   * {@link NotificationRoomManager#publishMedia(String, ParticipantRequest, MediaElement...)} . The
+   * {@link NotificationRoomManager#publishMedia(String, ParticipantRequest)} . The
    * user should receive the generated SPD answer from the local WebRTC endpoint, and the other
    * peers should be notified of this event.
    *

@@ -55,5 +55,4 @@ public interface IRoom {
     int getActivePublishers();
     void registerPublisher(String participantId);
     void deregisterPublisher(String participantId);
-    void updateFilter(String filterId);
 }

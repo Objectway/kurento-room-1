@@ -6,12 +6,11 @@ import com.hazelcast.nio.serialization.StreamSerializer;
 import org.kurento.client.KurentoClient;
 import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.api.MutedMediaType;
-import org.kurento.room.distributed.model.endpoint.DistributedPublisherEndpoint;
+import org.kurento.room.endpoint.DistributedPublisherEndpoint;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.interfaces.IRoomManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
-import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;

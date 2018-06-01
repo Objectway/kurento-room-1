@@ -1,20 +1,17 @@
-package org.kurento.room.distributed.model.endpoint;
+package org.kurento.room.endpoint;
 
 import org.kurento.client.*;
 import org.kurento.room.api.MutedMediaType;
-import org.kurento.room.distributed.DistributedParticipant;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
-import org.kurento.room.endpoint.SdpType;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IPublisherEndpoint;
 import org.kurento.room.interfaces.IRoomManager;
+import org.kurento.room.internal.DistributedParticipant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
-import java.util.Collection;
 import java.util.concurrent.locks.Lock;
 
 /**
@@ -149,11 +146,6 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
         unregisterElementErrListener(passThru, passThruSubscription);
     }
 
-    @Override
-    public Collection<MediaElement> getMediaElements() {
-        throw new NotImplementedException();
-    }
-
     /**
      * Initializes this media endpoint for publishing media and processes the SDP offer or answer. If
      * the internal endpoint is an {@link WebRtcEndpoint}, it first registers an event listener for
@@ -262,26 +254,6 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
         } finally {
             lock.unlock();
         }
-    }
-
-    @Override
-    public String apply(MediaElement shaper) throws RoomException {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public String apply(MediaElement shaper, MediaType type) throws RoomException {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public void revert(MediaElement shaper) throws RoomException {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public void revert(MediaElement shaper, boolean ùElement) throws RoomException {
-        throw new NotImplementedException();
     }
 
     @Override

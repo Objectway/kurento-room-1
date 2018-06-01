@@ -1,13 +1,12 @@
-package org.kurento.room.distributed.model.endpoint;
+package org.kurento.room.endpoint;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IList;
 import com.hazelcast.core.ILock;
 import org.kurento.client.*;
-import org.kurento.room.TurnClientCredentials;
 import org.kurento.room.TurnKMSCredentials;
 import org.kurento.room.api.MutedMediaType;
-import org.kurento.room.distributed.DistributedParticipant;
+import org.kurento.room.internal.DistributedParticipant;
 import org.kurento.room.distributed.interfaces.IChangeListener;
 import org.kurento.room.distributed.interfaces.ICountDownLatchWrapper;
 import org.kurento.room.distributed.interfaces.IDistributedNamingService;

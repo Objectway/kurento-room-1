@@ -1,4 +1,4 @@
-package org.kurento.room.distributed;
+package org.kurento.room;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
@@ -18,11 +18,12 @@ import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IParticipant;
 import org.kurento.room.interfaces.IRoom;
 import org.kurento.room.interfaces.IRoomManager;
+import org.kurento.room.internal.DistributedParticipant;
+import org.kurento.room.internal.DistributedRoom;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
@@ -129,14 +130,14 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
     }
 
     @Override
-    public String publishMedia(String participantId, String streamId, String streamType, boolean isOffer, String sdp, MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType, boolean doLoopback, MediaElement... mediaElements) throws RoomException {
+    public String publishMedia(String participantId, String streamId, String streamType, boolean isOffer, String sdp, MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType, boolean doLoopback) throws RoomException {
         if (kcProvider == null) {
             throw new RoomException(RoomException.Code.MEDIA_GENERIC_ERROR_CODE, "Cannot publish media without a KMS provider!");
         }
 
         log.debug("Request [PUBLISH_MEDIA] isOffer={} sdp={} "
-                        + "loopbackAltSrc={} lpbkConnType={} doLoopback={} mediaElements={} ({})", isOffer, sdp,
-                loopbackAlternativeSrc == null, loopbackConnectionType, doLoopback, mediaElements,
+                        + "loopbackAltSrc={} lpbkConnType={} doLoopback={} ({})", isOffer, sdp,
+                loopbackAlternativeSrc == null, loopbackConnectionType, doLoopback,
                 participantId);
 
         SdpType sdpType = isOffer ? SdpType.OFFER : SdpType.ANSWER;
@@ -145,10 +146,6 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         IRoom room = participant.getRoom();
 
         participant.createPublishingEndpoint(streamId);
-
-        for (MediaElement elem : mediaElements) {
-            participant.getPublisher(streamId).apply(elem);
-        }
 
         String sdpResponse = participant.publishToRoom(streamId, streamType, sdpType, sdp, doLoopback,
                 loopbackAlternativeSrc, loopbackConnectionType);
@@ -161,14 +158,12 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         return sdpResponse;
     }
 
-    public String publishMedia(String participantId, final String streamId, final String streamType, String sdp, boolean doLoopback,
-                               MediaElement... mediaElements) throws RoomException {
-        return publishMedia(participantId, streamId, streamType, true, sdp, null, null, doLoopback, mediaElements);
+    public String publishMedia(String participantId, final String streamId, final String streamType, String sdp, boolean doLoopback) throws RoomException {
+        return publishMedia(participantId, streamId, streamType, true, sdp, null, null, doLoopback);
     }
 
-    public String publishMedia(String participantId, final String streamId, final String streamType, boolean isOffer, String sdp, boolean doLoopback,
-                               MediaElement... mediaElements) throws RoomException {
-        return publishMedia(participantId, streamId, streamType, isOffer, sdp, null, null, doLoopback, mediaElements);
+    public String publishMedia(String participantId, final String streamId, final String streamType, boolean isOffer, String sdp, boolean doLoopback) throws RoomException {
+        return publishMedia(participantId, streamId, streamType, isOffer, sdp, null, null, doLoopback);
     }
 
     @Override
@@ -258,35 +253,6 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
                 endpointName, candidate, sdpMLineIndex, sdpMid, participantId);
         IParticipant participant = getParticipant(participantId);
         participant.addIceCandidate(endpointName, streamId, new DistributedIceCandidate(candidate, sdpMid, sdpMLineIndex));
-    }
-
-    @Override
-    public void addMediaElement(String participantId, String streamId, MediaElement element, MediaType type) throws RoomException {
-        log.debug("Add media element {} (connection type: {}) to participant {}", element.getId(), type,
-                participantId);
-        IParticipant participant = getParticipant(participantId);
-        String name = participant.getName();
-        if (participant.isClosed()) {
-            throw new RoomException(RoomException.Code.USER_CLOSED_ERROR_CODE,
-                    "Participant '" + name + "' has been closed");
-        }
-        participant.shapePublisherMedia(element, type, streamId);
-    }
-
-    public void addMediaElement(String participantId, final String streamId, MediaElement element) throws RoomException {
-        addMediaElement(participantId, streamId, element, null);
-    }
-
-    @Override
-    public void removeMediaElement(String participantId, String streamId, MediaElement element) throws RoomException {
-        log.debug("Remove media element {} from participant {}", element.getId(), participantId);
-        IParticipant participant = getParticipant(participantId);
-        String name = participant.getName();
-        if (participant.isClosed()) {
-            throw new RoomException(RoomException.Code.USER_CLOSED_ERROR_CODE,
-                    "Participant '" + name + "' has been closed");
-        }
-        participant.getPublisher(streamId).revert(element);
     }
 
     @Override
@@ -591,11 +557,6 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
     public UserParticipant getParticipantInfo(String participantId) throws RoomException {
         IParticipant participant = getParticipant(participantId);
         return new UserParticipant(participantId, participant.getName());
-    }
-
-    @Override
-    public void updateFilter(String roomId, String filterId) {
-        throw new NotImplementedException();
     }
 
     @Override

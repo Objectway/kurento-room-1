@@ -1,10 +1,7 @@
-package org.kurento.room.distributed;
+package org.kurento.room.internal;
 
 import org.kurento.client.KurentoClient;
 import org.kurento.jsonrpc.client.AbstractJsonRpcClientWebSocket;
-import org.kurento.jsonrpc.client.JsonRpcClient;
-import org.kurento.room.interfaces.IRoomManager;
-import org.kurento.room.internal.Room;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

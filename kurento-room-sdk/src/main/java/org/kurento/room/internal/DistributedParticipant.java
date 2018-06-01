@@ -1,18 +1,17 @@
-package org.kurento.room.distributed;
+package org.kurento.room.internal;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IAtomicLong;
-import com.hazelcast.core.ICountDownLatch;
 import com.hazelcast.core.IMap;
 import org.kurento.client.*;
 import org.kurento.client.internal.server.KurentoServerException;
 import org.kurento.room.api.MutedMediaType;
+import org.kurento.room.distributed.DistributedNamingService;
 import org.kurento.room.distributed.interfaces.IChangeListener;
-import org.kurento.room.distributed.model.endpoint.DistributedMediaEndpoint;
-import org.kurento.room.distributed.model.endpoint.DistributedPublisherEndpoint;
-import org.kurento.room.distributed.model.endpoint.DistributedSubscriberEndpoint;
+import org.kurento.room.endpoint.DistributedMediaEndpoint;
+import org.kurento.room.endpoint.DistributedPublisherEndpoint;
+import org.kurento.room.endpoint.DistributedSubscriberEndpoint;
 import org.kurento.room.endpoint.SdpType;
-import org.kurento.room.endpoint.SubscriberEndpoint;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IParticipant;
 import org.kurento.room.interfaces.IPublisherEndpoint;
@@ -24,12 +23,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import javax.annotation.PostConstruct;
 import java.util.*;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Created by sturiale on 05/12/16.
@@ -110,49 +106,6 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
     @Override
     public String getName() {
         return name;
-    }
-
-    @Override
-    public void shapePublisherMedia(MediaElement element, MediaType type, String streamId) {
-        if (!publishers.containsKey(streamId)) {
-            throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE, "Unable to create publisher endpoint, streamId " + streamId + " not found");
-        }
-        final IPublisherEndpoint publisher = publishers.get(streamId);
-        if (type == null) {
-            publisher.apply(element);
-        } else {
-            publisher.apply(element, type);
-        }
-    }
-
-    @Override
-    public Filter getFilterElement(String id) {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public void addFilterElement(String id, Filter filter) {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public void disableFilterelement(String filterID, boolean releaseElement) {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public void enableFilterelement(String filterID) {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public void removeFilterElement(String id) {
-        throw new NotImplementedException();
-    }
-
-    @Override
-    public void releaseAllFilters() {
-        throw new NotImplementedException();
     }
 
     @Override

@@ -2,13 +2,10 @@ package org.kurento.room.interfaces;
 
 import org.kurento.client.*;
 import org.kurento.room.api.MutedMediaType;
-import org.kurento.room.endpoint.PublisherEndpoint;
 import org.kurento.room.endpoint.SdpType;
-import org.kurento.room.endpoint.SubscriberEndpoint;
 
 import java.util.Enumeration;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Interface for a Participant
@@ -17,13 +14,6 @@ public interface IParticipant {
   void createPublishingEndpoint(String streamId);
   String getId();
   String getName();
-  void shapePublisherMedia(MediaElement element, MediaType type, String streamId);
-  Filter getFilterElement(String id);
-  void addFilterElement(String id, Filter filter);
-  void disableFilterelement(String filterID, boolean releaseElement);
-  void enableFilterelement(String filterID);
-  void removeFilterElement(String id);
-  void releaseAllFilters();
   IPublisherEndpoint getPublisher(String streamId);
   IRoom getRoom();
   MediaPipeline getPipeline();
@@ -52,7 +42,7 @@ public interface IParticipant {
   void close();
 
   /**
-   * Returns a {@link SubscriberEndpoint} for the given username. The endpoint is created if not
+   * Returns a {@link ISubscriberEndpoint} for the given username. The endpoint is created if not
    * found.
    *
    * @param remoteName name of another user

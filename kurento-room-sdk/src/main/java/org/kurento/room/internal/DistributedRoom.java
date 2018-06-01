@@ -1,4 +1,4 @@
-package org.kurento.room.distributed;
+package org.kurento.room.internal;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ILock;
@@ -480,11 +480,6 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             pipelineReleaseLock.unlock();
             listener.onChange(this);
         }
-    }
-
-    @Override
-    public void updateFilter(String filterId) {
-        throw new NotImplementedException();
     }
 
     @Override

@@ -6,9 +6,6 @@ import org.kurento.client.SdpEndpoint;
 import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.distributed.interfaces.ICountDownLatchWrapper;
 import org.kurento.room.exception.RoomException;
-import org.kurento.room.internal.Participant;
-
-import java.util.concurrent.CountDownLatch;
 
 /**
  * Created by sturiale on 07/12/16.
