@@ -109,7 +109,7 @@ public class KurentoRoomServerApp implements JsonRpcConfigurer {
   @Bean
   @ConditionalOnMissingBean
   public IRoomManager roomManager() {
-    return new RoomManager();
+    return new DistributedRoomManager();
   }
 
   @Bean
