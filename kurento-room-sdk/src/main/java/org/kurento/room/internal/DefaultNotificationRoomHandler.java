@@ -232,7 +232,7 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
   // ------------ EVENTS FROM ROOM HANDLER -----
 
   @Override
-  public void onIceCandidate(String roomName, String participantId, String participantName, String endpointName, final String streamId,
+  public void onIceCandidate(RoomId roomId, String participantId, String participantName, String endpointName, final String streamId,
       IceCandidate candidate) {
     JsonObject params = new JsonObject();
     params.addProperty(ProtocolElements.ICECANDIDATE_EPNAME_PARAM, endpointName);
@@ -245,7 +245,7 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
   }
 
   @Override
-  public void onPipelineError(String roomName, Collection<IParticipant> participants, String description) {
+  public void onPipelineError(RoomId roomId, Collection<IParticipant> participants, String description) {
     JsonObject notifParams = new JsonObject();
     notifParams.addProperty(ProtocolElements.MEDIAERROR_ERROR_PARAM, description);
     for (IParticipant participant : participants) {
@@ -254,7 +254,7 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
   }
 
   @Override
-  public void onMediaElementError(String roomName, String participantId, String participantName, String description) {
+  public void onMediaElementError(RoomId roomId, String participantId, String participantName, String description) {
     JsonObject notifParams = new JsonObject();
     notifParams.addProperty(ProtocolElements.MEDIAERROR_ERROR_PARAM, description);
 //    notifService.sendNotification(participantId, ProtocolElements.MEDIAERROR_METHOD, notifParams);

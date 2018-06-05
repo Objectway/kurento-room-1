@@ -333,12 +333,12 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     @Override
     public void sendIceCandidate(String participantId, String participantName, String endpointName, String streamId, IceCandidate candidate) {
-        this.roomHandler.onIceCandidate(roomId.getRoomName(), participantId, participantName, endpointName, streamId, candidate);
+        this.roomHandler.onIceCandidate(roomId, participantId, participantName, endpointName, streamId, candidate);
     }
 
     @Override
     public void sendMediaError(String participantId, String participantName, String description) {
-        this.roomHandler.onMediaElementError(roomId.getRoomName(), participantId, participantName, description);
+        this.roomHandler.onMediaElementError(roomId, participantId, participantName, description);
     }
 
     @Override
@@ -436,7 +436,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
                 public void onEvent(ErrorEvent event) {
                     final String desc = event.getType() + ": " + event.getDescription() + "(errCode=" + event.getErrorCode() + ")";
                     log.warn("ROOM {}: Pipeline error encountered: {}", roomId.getRoomName(), desc);
-                    roomHandler.onPipelineError(roomId.getRoomName(), (Collection<IParticipant>) getParticipants(), desc);
+                    roomHandler.onPipelineError(roomId, (Collection<IParticipant>) getParticipants(), desc);
                 }
             });
         } finally {

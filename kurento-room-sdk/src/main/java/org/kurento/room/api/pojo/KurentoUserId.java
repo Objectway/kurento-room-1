@@ -1,11 +1,12 @@
 package org.kurento.room.api.pojo;
 
+import java.io.Serializable;
 import java.util.Objects;
 
 /**
  * Created by Sebastiano Motta on 04/06/2018.
  */
-public class KurentoUserId implements Comparable<KurentoUserId>{
+public class KurentoUserId implements Serializable, Comparable<KurentoUserId>{
 
 	private static final long serialVersionUID = 1L;
 
