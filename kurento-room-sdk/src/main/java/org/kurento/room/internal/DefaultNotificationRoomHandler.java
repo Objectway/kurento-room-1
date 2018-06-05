@@ -23,6 +23,7 @@ import org.kurento.client.IceCandidate;
 import org.kurento.room.api.NotificationRoomHandler;
 import org.kurento.room.api.UserNotificationService;
 import org.kurento.room.api.pojo.ParticipantRequest;
+import org.kurento.room.api.pojo.RoomId;
 import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.exception.RoomException;
 
@@ -46,13 +47,13 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
   }
 
   @Override
-  public void onRoomClosed(String roomName, Set<UserParticipant> participants) {
+  public void onRoomClosed(RoomId roomId, Set<UserParticipant> participants) {
     JsonObject notifParams = new JsonObject();
-    notifParams.addProperty(ProtocolElements.ROOMCLOSED_ROOM_PARAM, roomName);
-    for (UserParticipant participant : participants) {
+    notifParams.addProperty(ProtocolElements.ROOMCLOSED_ROOM_PARAM, roomId.getRoomName());
+//    for (UserParticipant participant : participants) {
 //      notifService.sendNotification(participant.getParticipantId(),
 //          ProtocolElements.ROOMCLOSED_METHOD, notifParams);
-    }
+//    }
   }
 
   @Override

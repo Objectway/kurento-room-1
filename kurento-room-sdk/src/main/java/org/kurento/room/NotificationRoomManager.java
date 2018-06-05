@@ -20,17 +20,17 @@ import org.kurento.client.MediaElement;
 import org.kurento.client.MediaPipeline;
 import org.kurento.client.MediaType;
 import org.kurento.room.api.*;
+import org.kurento.room.api.pojo.KurentoUserId;
 import org.kurento.room.api.pojo.ParticipantRequest;
+import org.kurento.room.api.pojo.RoomId;
 import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IRoomManager;
 import org.kurento.room.internal.DefaultKurentoClientSessionInfo;
-import org.kurento.room.internal.DefaultNotificationRoomHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 
-import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.util.Set;
 
@@ -72,6 +72,8 @@ public class NotificationRoomManager {
    * with a {@link DefaultKurentoClientSessionInfo} bean as implementation of the
    * {@link KurentoClientSessionInfo}.
    *
+   *
+   * @param userId
    * @param request instance of {@link ParticipantRequest} POJO containing the participant's id
    *                and a
    *                request id (optional identifier of the request at the communications level,
@@ -79,22 +81,22 @@ public class NotificationRoomManager {
    *                when responding back to the client)
    * @see RoomManager#joinRoom(String, String, boolean, boolean, KurentoClientSessionInfo, String)
    */
-  public void joinRoom(String userName, String roomName, boolean dataChannels,
+  public void joinRoom(KurentoUserId userId, String roomName, boolean dataChannels,
       boolean webParticipant, ParticipantRequest request) {
     Set<UserParticipant> existingParticipants = null;
     try {
       KurentoClientSessionInfo kcSessionInfo =
           new DefaultKurentoClientSessionInfo(request.getParticipantId(), roomName);
       existingParticipants = internalManager
-          .joinRoom(userName, roomName, dataChannels, webParticipant, kcSessionInfo,
+          .joinRoom(userId, roomName, dataChannels, webParticipant, kcSessionInfo,
               request.getParticipantId());
     } catch (RoomException e) {
-      log.warn("PARTICIPANT {}: Error joining/creating room {}", userName, roomName, e);
-      notificationRoomHandler.onParticipantJoined(request, roomName, userName, null, e);
+      log.warn("PARTICIPANT [{},{}]: Error joining/creating room {}", userId.getTenant(), userId.getUsername(), roomName, e);
+      notificationRoomHandler.onParticipantJoined(request, roomName, userId.getUsername(), null, e);
     }
     if (existingParticipants != null) {
       notificationRoomHandler
-          .onParticipantJoined(request, roomName, userName, existingParticipants, null);
+          .onParticipantJoined(request, roomName, userId.getUsername(), existingParticipants, null);
     }
   }
 
@@ -105,14 +107,14 @@ public class NotificationRoomManager {
   public void leaveRoom(ParticipantRequest request) {
     String pid = request.getParticipantId();
     Set<UserParticipant> remainingParticipants = null;
-    String roomName = null;
+    RoomId roomId = null;
     String userName = null;
     try {
-      roomName = internalManager.getRoomName(pid);
+      roomId = internalManager.getRoomId(pid);
       userName = internalManager.getParticipantName(pid);
       remainingParticipants = internalManager.leaveRoom(pid);
     } catch (RoomException e) {
-      log.warn("PARTICIPANT {}: Error leaving room {}", userName, roomName, e);
+      log.warn("PARTICIPANT {}: Error leaving room {}", userName, roomId, e);
       notificationRoomHandler.onParticipantLeft(request, null, null, e);
     }
     if (remainingParticipants != null) {
@@ -134,7 +136,7 @@ public class NotificationRoomManager {
       userName = internalManager.getParticipantName(pid);
       sdpAnswer = internalManager.publishMedia(request.getParticipantId(), streamId, streamType, isOffer, sdp,
           loopbackAlternativeSrc, loopbackConnectionType, doLoopback);
-      participants = internalManager.getParticipants(internalManager.getRoomName(pid));
+      participants = internalManager.getParticipants(internalManager.getRoomId(pid));
     } catch (RoomException e) {
       log.warn("PARTICIPANT {}: Error publishing media", userName, e);
       notificationRoomHandler.onPublishMedia(request, null, null, null, null, null, e);
@@ -165,7 +167,7 @@ public class NotificationRoomManager {
       userName = internalManager.getParticipantName(pid);
       internalManager.unpublishMedia(pid, streamId);
       unpublished = true;
-      participants = internalManager.getParticipants(internalManager.getRoomName(pid));
+      participants = internalManager.getParticipants(internalManager.getRoomId(pid));
     } catch (RoomException e) {
       log.warn("PARTICIPANT {}: Error unpublishing media", userName, e);
       notificationRoomHandler.onUnpublishMedia(request, null, null, null, e);
@@ -288,29 +290,29 @@ public class NotificationRoomManager {
   /**
    * @see RoomManager#getRooms()
    */
-  public Set<String> getRooms() {
+  public Set<RoomId> getRooms() {
     return internalManager.getRooms();
   }
 
   /**
    * @see RoomManager#getParticipants(String)
    */
-  public Set<UserParticipant> getParticipants(String roomName) throws RoomException {
-    return internalManager.getParticipants(roomName);
+  public Set<UserParticipant> getParticipants(RoomId roomId) throws RoomException {
+    return internalManager.getParticipants(roomId);
   }
 
   /**
    * @see RoomManager#getPublishers(String)
    */
-  public Set<UserParticipant> getPublishers(String roomName) throws RoomException {
-    return internalManager.getPublishers(roomName);
+  public Set<UserParticipant> getPublishers(RoomId roomId) throws RoomException {
+    return internalManager.getPublishers(roomId);
   }
 
   /**
    * @see RoomManager#getSubscribers(String)
    */
-  public Set<UserParticipant> getSubscribers(String roomName) throws RoomException {
-    return internalManager.getSubscribers(roomName);
+  public Set<UserParticipant> getSubscribers(RoomId roomId) throws RoomException {
+    return internalManager.getSubscribers(roomId);
   }
 
   /**
@@ -325,13 +327,6 @@ public class NotificationRoomManager {
    */
   public Set<UserParticipant> getPeerSubscribers(String participantId) throws RoomException {
     return internalManager.getPeerSubscribers(participantId);
-  }
-
-  /**
-   * @see RoomManager#createRoom(KurentoClientSessionInfo)
-   */
-  public void createRoom(KurentoClientSessionInfo kcSessionInfo) throws RoomException {
-    internalManager.createRoom(kcSessionInfo);
   }
 
   /**
@@ -358,10 +353,11 @@ public class NotificationRoomManager {
 
   /**
    * @see RoomManager#closeRoom(String)
+   * @param roomId
    */
-  public void closeRoom(String roomName) throws RoomException {
-    Set<UserParticipant> participants = internalManager.closeRoom(roomName);
-    notificationRoomHandler.onRoomClosed(roomName, participants);
+  public void closeRoom(RoomId roomId) throws RoomException {
+    Set<UserParticipant> participants = internalManager.closeRoom(roomId);
+    notificationRoomHandler.onRoomClosed(roomId, participants);
   }
 
   /**

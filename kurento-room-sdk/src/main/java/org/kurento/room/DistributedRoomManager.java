@@ -9,6 +9,8 @@ import org.kurento.client.MediaType;
 import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.api.KurentoClientSessionInfo;
 import org.kurento.room.api.MutedMediaType;
+import org.kurento.room.api.pojo.KurentoUserId;
+import org.kurento.room.api.pojo.RoomId;
 import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.distributed.interfaces.IChangeListener;
 import org.kurento.room.distributed.interfaces.IDistributedNamingService;
@@ -52,7 +54,7 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
     @Autowired
     private ApplicationContext context;
 
-    private IMap<String, DistributedRoom> rooms;
+    private IMap<RoomId, DistributedRoom> rooms;
 
     @PostConstruct
     public void init() {
@@ -67,30 +69,31 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
     }
 
     @Override
-    public Set<UserParticipant> joinRoom(String userName, String roomName, boolean dataChannels, boolean webParticipant, KurentoClientSessionInfo kcSessionInfo, String participantId) throws RoomException {
-        log.debug("Request [JOIN_ROOM] user={}, room={}, web={} " + "kcSessionInfo.room={} ({})",
-                userName, roomName, webParticipant,
+    public Set<UserParticipant> joinRoom(KurentoUserId userId, String roomName, boolean dataChannels, boolean webParticipant, KurentoClientSessionInfo kcSessionInfo, String participantId) throws RoomException {
+        log.debug("Request [JOIN_ROOM] userId={}, room={}, web={} " + "kcSessionInfo.room={} ({})",
+                userId, roomName, webParticipant,
                 kcSessionInfo != null ? kcSessionInfo.getRoomName() : null, participantId);
-        IRoom room = rooms.get(roomName);
+        RoomId roomId = new RoomId(userId.getTenant(), roomName);
+        IRoom room = rooms.get(roomId);
         if (room == null && kcSessionInfo != null) {
-            createRoom(kcSessionInfo);
-            room = rooms.get(roomName);
+            this.createRoom(kcSessionInfo, roomId);
+            room = rooms.get(roomId);
         }
 
         if (room == null) {
             log.warn("Room '{}' not found");
             throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE,
-                    "Room '" + roomName + "' was not found, must be created before '" + userName
+                    "Room '" + roomId + "' was not found, must be created before '" + userId
                             + "' can join");
         }
         if (room.isClosed()) {
-            log.warn("'{}' is trying to join room '{}' but it is closing", userName, roomName);
+            log.warn("'{}' is trying to join room '{}' but it is closing", userId, roomId);
             throw new RoomException(RoomException.Code.ROOM_CLOSED_ERROR_CODE,
-                    "'" + userName + "' is trying to join room '" + roomName + "' but it is closing");
+                    "'" + userId + "' is trying to join room '" + roomId + "' but it is closing");
         }
 
-        Set<UserParticipant> existingParticipants = getParticipants(roomName);
-        room.join(participantId, userName, dataChannels, webParticipant);
+        Set<UserParticipant> existingParticipants = this.getParticipants(roomId);
+        room.join(participantId, userId.getUsername(), dataChannels, webParticipant);
         return existingParticipants;
     }
 
@@ -99,32 +102,31 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         log.debug("Request [LEAVE_ROOM] ({})", participantId);
         DistributedParticipant participant = getParticipant(participantId);
         IRoom room = participant.getRoom();
-        String roomName = room.getName();
+        RoomId roomId = room.getId();
         if (room.isClosed()) {
-            log.warn("'{}' is trying to leave from room '{}' but it is closing", participant.getName(),
-                    roomName);
+            log.warn("'{}' is trying to leave from room '{}' but it is closing", participant.getName(), roomId);
             throw new RoomException(RoomException.Code.ROOM_CLOSED_ERROR_CODE,
-                    "'" + participant.getName() + "' is trying to leave from room '" + roomName
+                    "'" + participant.getName() + "' is trying to leave from room '" + roomId
                             + "' but it is closing");
         }
         room.leave(participantId);
-        Set<UserParticipant> remainingParticipants = null;
+        Set<UserParticipant> remainingParticipants;
         try {
-            remainingParticipants = getParticipants(roomName);
+            remainingParticipants = this.getParticipants(roomId);
         } catch (RoomException e) {
             log.debug("Possible collision when closing the room '{}' (not found)");
             remainingParticipants = Collections.emptySet();
         }
         if (remainingParticipants.isEmpty()) {
-            log.debug("No more participants in room '{}', removing it and closing it", roomName);
+            log.debug("No more participants in room '{}', removing it and closing it", roomId);
             room.close();
 
             // Warning: We must call destroyHazelcastResources AFTER we
             // remove the element from the map, otherwise the destroyed resources
             // will be recreated (most likely the .remove() causes a deserialization)
-            rooms.remove(roomName);
+            rooms.remove(roomId);
             ((DistributedRoom)room).destroyHazelcastResources();
-            log.warn("Room '{}' removed and closed", roomName);
+            log.warn("Room '{}' removed and closed", roomId);
         }
         return remainingParticipants;
     }
@@ -209,8 +211,12 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
 
         IRoom room = participant.getRoom();
         IParticipant senderParticipant = room.getParticipantByName(remoteName);
-        log.info("Request subscribe remoteName = {}, streamId = {}, participantId = {}, remoteStreaming = {}", remoteName, streamId, participantId, senderParticipant.isAnyStreaming());
-        if (senderParticipant == null) {
+        boolean isAnyStreaming;
+
+        if (senderParticipant != null) {
+            isAnyStreaming = senderParticipant.isAnyStreaming();
+            log.info("Request subscribe remoteName = {}, streamId = {}, participantId = {}, remoteStreaming = {}", remoteName, streamId, participantId, isAnyStreaming);
+        } else {
             log.warn("PARTICIPANT {}: Requesting to recv media from user {} "
                     + "in room {} but user could not be found", name, remoteName, room.getName());
             throw new RoomException(RoomException.Code.USER_NOT_FOUND_ERROR_CODE,
@@ -356,53 +362,53 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
     }
 
     @Override
-    public Set<String> getRooms() {
-        return new HashSet<String>(rooms.keySet());
+    public HashSet<RoomId> getRooms() {
+        return new HashSet<>(rooms.keySet());
     }
 
     @Override
-    public Set<UserParticipant> getParticipants(String roomName) throws RoomException {
-        IRoom room = rooms.get(roomName);
+    public Set<UserParticipant> getParticipants(RoomId roomId) throws RoomException {
+        IRoom room = rooms.get(roomId);
         if (room == null) {
-            throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomName + "' not found");
+            throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomId + "' not found");
         }
         Collection<? extends IParticipant> participants = room.getParticipants();
         Set<UserParticipant> userParts = new HashSet<UserParticipant>();
         for (IParticipant p : participants) {
             if (!p.isClosed()) {
-                userParts.add(new UserParticipant(p.getId(), p.getName(), p.isAnyStreaming()));
+                userParts.add(new UserParticipant(p.getId(), p.getName(), p.getRoom().getTenant(), p.isAnyStreaming()));
             }
         }
         return userParts;
     }
 
     @Override
-    public Set<UserParticipant> getPublishers(String roomName) throws RoomException {
-        IRoom r = rooms.get(roomName);
+    public Set<UserParticipant> getPublishers(RoomId roomId) throws RoomException {
+        IRoom r = rooms.get(roomId);
         if (r == null) {
-            throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomName + "' not found");
+            throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomId + "' not found");
         }
         Collection<? extends IParticipant> participants = r.getParticipants();
         Set<UserParticipant> userParts = new HashSet<UserParticipant>();
         for (IParticipant p : participants) {
             if (!p.isClosed() && p.isAnyStreaming()) {
-                userParts.add(new UserParticipant(p.getId(), p.getName(), true));
+                userParts.add(new UserParticipant(p.getId(), p.getName(), p.getRoom().getTenant(), true));
             }
         }
         return userParts;
     }
 
     @Override
-    public Set<UserParticipant> getSubscribers(String roomName) throws RoomException {
-        IRoom r = rooms.get(roomName);
+    public Set<UserParticipant> getSubscribers(RoomId roomId) throws RoomException {
+        IRoom r = rooms.get(roomId);
         if (r == null) {
-            throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomName + "' not found");
+            throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomId + "' not found");
         }
         Collection<? extends IParticipant> participants = r.getParticipants();
         Set<UserParticipant> userParts = new HashSet<UserParticipant>();
         for (IParticipant p : participants) {
             if (!p.isClosed() && p.isSubscribed()) {
-                userParts.add(new UserParticipant(p.getId(), p.getName(), p.isAnyStreaming()));
+                userParts.add(new UserParticipant(p.getId(), p.getName(), p.getRoom().getTenant(), p.isAnyStreaming()));
             }
         }
         return userParts;
@@ -420,7 +426,7 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         Set<UserParticipant> userParts = new HashSet<UserParticipant>();
         for (String epName : subscribedEndpoints) {
             IParticipant p = room.getParticipantByName(epName);
-            userParts.add(new UserParticipant(p.getId(), p.getName()));
+            userParts.add(new UserParticipant(p.getId(), p.getName(), room.getTenant()));
         }
         return userParts;
     }
@@ -445,7 +451,7 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
             }
             Set<String> subscribedEndpoints = p.getConnectedSubscribedEndpoints();
             if (subscribedEndpoints.contains(endpointName)) {
-                userParts.add(new UserParticipant(p.getId(), p.getName()));
+                userParts.add(new UserParticipant(p.getId(), p.getName(), room.getTenant()));
             }
         }
         return userParts;
@@ -465,8 +471,7 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         return participant.isAnyStreaming();
     }
 
-    @Override
-    public void createRoom(KurentoClientSessionInfo kcSessionInfo) throws RoomException {
+    private void createRoom(KurentoClientSessionInfo kcSessionInfo, RoomId roomId) throws RoomException {
         String roomName = kcSessionInfo.getRoomName();
         // TODO: This check does not make sense. Ask on Kurento mailing list.
 //        DistributedRoom room = rooms.get(kcSessionInfo);
@@ -477,9 +482,9 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
 
         // We may not have a kcProvider object!
         KurentoClient kurentoClient = kcProvider != null ? kcProvider.getKurentoClient(kcSessionInfo) : null;
-        DistributedRoom room = (DistributedRoom) context.getBean("distributedRoom", roomName, kurentoClient, kcProvider != null ? kcProvider.destroyWhenUnused() : true);
+        DistributedRoom room = (DistributedRoom) context.getBean("distributedRoom", roomId, kurentoClient, kcProvider != null ? kcProvider.destroyWhenUnused() : true);
         room.setListener(this);
-        DistributedRoom oldRoom = rooms.putIfAbsent(roomName, room);
+        DistributedRoom oldRoom = rooms.putIfAbsent(roomId, room);
 
         if (oldRoom != null) {
             log.warn("Room '{}' has just been created by another thread", roomName);
@@ -494,28 +499,27 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         if (kurentoClient != null && kurentoClient.getServerManager() != null) {
             kcName = kurentoClient.getServerManager().getName();
         }
-        log.warn("No room '{}' exists yet. Created one " + "using KurentoClient '{}'.", roomName,
-                kcName);
+        log.warn("No room '{}' exists yet. Created one " + "using KurentoClient '{}'.", roomName, kcName);
     }
 
     @Override
-    public Set<UserParticipant> closeRoom(String roomName) throws RoomException {
-        DistributedRoom room = rooms.get(roomName);
+    public Set<UserParticipant> closeRoom(RoomId roomId) throws RoomException {
+        DistributedRoom room = rooms.get(roomId);
         if (room == null) {
-            throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomName + "' not found");
+            throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomId + "' not found");
         }
         if (room.isClosed()) {
             throw new RoomException(RoomException.Code.ROOM_CLOSED_ERROR_CODE,
-                    "Room '" + roomName + "' already closed");
+                    "Room '" + roomId + "' already closed");
         }
-        Set<UserParticipant> participants = getParticipants(roomName);
+        Set<UserParticipant> participants = this.getParticipants(roomId);
         // copy the ids as they will be removed from the map
         Set<String> pids = new HashSet<String>(room.getParticipantIds());
         for (String pid : pids) {
             try {
                 room.leave(pid);
             } catch (RoomException e) {
-                log.warn("Error evicting participant with id '{}' from room '{}'", pid, roomName, e);
+                log.warn("Error evicting participant with id '{}' from room '{}'", pid, roomId, e);
             }
         }
 
@@ -524,10 +528,10 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         // Warning: We must call destroyHazelcastResources AFTER we
         // remove the element from the map, otherwise the destroyed resources
         // will be recreated (most likely the .remove() causes a deserialization)
-        rooms.remove(roomName);
+        rooms.remove(roomId);
         room.destroyHazelcastResources();
 
-        log.warn("Room '{}' removed and closed", roomName);
+        log.warn("Room '{}' removed and closed", roomId);
         return participants;
     }
 
@@ -542,9 +546,9 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
     }
 
     @Override
-    public String getRoomName(String participantId) throws RoomException {
+    public RoomId getRoomId(String participantId) throws RoomException {
         IParticipant participant = getParticipant(participantId);
-        return participant.getRoom().getName();
+        return participant.getRoom().getId();
     }
 
     @Override
@@ -556,7 +560,7 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
     @Override
     public UserParticipant getParticipantInfo(String participantId) throws RoomException {
         IParticipant participant = getParticipant(participantId);
-        return new UserParticipant(participantId, participant.getName());
+        return new UserParticipant(participantId, participant.getName(), participant.getRoom().getTenant());
     }
 
     @Override
@@ -564,9 +568,13 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         return rooms.get(name);
     }
 
+    @Override public IRoom getRoomById(RoomId roomId) {
+        return rooms.get(roomId);
+    }
+
     @Override
     public void onChange(DistributedRoom room) {
-        rooms.set(room.getName(), room);
+        rooms.set(room.getId(), room);
     }
 
 

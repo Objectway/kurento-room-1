@@ -6,6 +6,7 @@ import com.hazelcast.nio.serialization.StreamSerializer;
 import org.kurento.client.KurentoClient;
 import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.DistributedRoomManager;
+import org.kurento.room.api.pojo.RoomId;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.internal.DistributedRoom;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -35,7 +36,7 @@ public class DistributedRoomSerializer implements StreamSerializer<DistributedRo
     @Override
     public void write(ObjectDataOutput out, DistributedRoom distributedRoom)
             throws IOException {
-        out.writeUTF(distributedRoom.getName());
+        out.writeObject(distributedRoom.getId());
         out.writeUTF(distributedRoom.getKmsUri());
         out.writeBoolean(distributedRoom.getDestroyKurentoClient());
         out.writeBoolean(distributedRoom.isClosed());
@@ -48,7 +49,7 @@ public class DistributedRoomSerializer implements StreamSerializer<DistributedRo
     @Override
     public DistributedRoom read(ObjectDataInput in)
             throws IOException {
-        String roomName = in.readUTF();
+        RoomId roomId = in.readObject();
         String kmsUri = in.readUTF();
         boolean destroyKurentoClient = in.readBoolean();
         boolean closed = in.readBoolean();
@@ -58,7 +59,7 @@ public class DistributedRoomSerializer implements StreamSerializer<DistributedRo
         DistributedRemoteObject recorderInfo = (DistributedRemoteObject) in.readObject();
 
         KurentoClient client = kmsManager.getKurentoClient(kmsUri);
-        DistributedRoom distributedRoom = (DistributedRoom) context.getBean("distributedRoom", roomName, client, destroyKurentoClient, closed, pipelineInfo, compositeInfo, hubPortInfo, recorderInfo);
+        DistributedRoom distributedRoom = (DistributedRoom) context.getBean("distributedRoom", roomId, client, destroyKurentoClient, closed, pipelineInfo, compositeInfo, hubPortInfo, recorderInfo);
         distributedRoom.setListener((DistributedRoomManager) context.getBean("roomManager"));
         return distributedRoom;
     }

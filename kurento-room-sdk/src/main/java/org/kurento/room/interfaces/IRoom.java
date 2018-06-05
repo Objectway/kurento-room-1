@@ -1,6 +1,7 @@
 package org.kurento.room.interfaces;
 
 import org.kurento.client.*;
+import org.kurento.room.api.pojo.RoomId;
 import org.kurento.room.exception.RoomException;
 
 import java.util.Collection;
@@ -55,4 +56,8 @@ public interface IRoom {
     int getActivePublishers();
     void registerPublisher(String participantId);
     void deregisterPublisher(String participantId);
+
+    RoomId getId();
+
+    String getTenant();
 }

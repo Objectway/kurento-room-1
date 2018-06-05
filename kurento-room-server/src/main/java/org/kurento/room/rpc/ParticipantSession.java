@@ -17,6 +17,8 @@
 
 package org.kurento.room.rpc;
 
+import org.kurento.room.api.pojo.KurentoUserId;
+
 /**
  * Participant information that should be stored in the WebSocket session.
  *
@@ -28,6 +30,7 @@ public class ParticipantSession {
   private String participantName;
   private String roomName;
   private boolean dataChannels = false;
+  private KurentoUserId userId;
 
   public ParticipantSession() {
   }
@@ -69,5 +72,13 @@ public class ParticipantSession {
     builder.append("useDataChannels=").append(dataChannels);
     builder.append("]");
     return builder.toString();
+  }
+
+  public void setUserId(KurentoUserId userId) {
+    this.userId = userId;
+  }
+
+  public KurentoUserId getUserId() {
+    return userId;
   }
 }

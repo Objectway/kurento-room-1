@@ -6,6 +6,7 @@ import com.hazelcast.nio.serialization.StreamSerializer;
 import org.kurento.client.KurentoClient;
 import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.api.MutedMediaType;
+import org.kurento.room.api.pojo.RoomId;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.endpoint.DistributedSubscriberEndpoint;
 import org.kurento.room.interfaces.IRoomManager;
@@ -44,7 +45,7 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
         out.writeBoolean(endpoint.isDataChannels());
         out.writeObject(webEndpointRemoteObj);
         out.writeObject(rtpEndpointRemoteObj);
-        out.writeUTF(endpoint.getOwner().getRoom().getName());
+        out.writeObject(endpoint.getOwner().getRoom().getId());
         out.writeUTF(endpoint.getOwner().getId());
         out.writeUTF(endpoint.getEndpointName());
 
@@ -67,7 +68,7 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
         boolean dataChannels = in.readBoolean();
         DistributedRemoteObject webEndpointRemoteObj = in.readObject();
         DistributedRemoteObject rtpEndpointRemoteObj = in.readObject();
-        String roomName = in.readUTF();
+        RoomId roomId = in.readObject();
         String participantId = in.readUTF();
         String endpointName = in.readUTF();
         String muteTypeStr = in.readObject();
@@ -83,7 +84,7 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
         IRoomManager roomManager = (IRoomManager) context.getBean("roomManager");
 
         return (DistributedSubscriberEndpoint) context.getBean("distributedSubscriberEndpoint", web, dataChannels, endpointName, kmsUrl, streamId, client, webEndpointRemoteObj, rtpEndpointRemoteObj,
-                roomName, participantId, muteType, connectedToPublisher, roomManager);
+                roomId, participantId, muteType, connectedToPublisher, roomManager);
     }
 
     @Override

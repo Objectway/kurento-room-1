@@ -2,6 +2,7 @@ package org.kurento.room.endpoint;
 
 import org.kurento.client.*;
 import org.kurento.room.api.MutedMediaType;
+import org.kurento.room.api.pojo.RoomId;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IPublisherEndpoint;
@@ -50,13 +51,13 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
                                         DistributedRemoteObject recEndpointInfo,
                                         DistributedRemoteObject passThrouInfo,
                                         DistributedRemoteObject hubportInfo,
-                                        String roomName,
+                                        RoomId roomId,
                                         String participantId,
                                         MutedMediaType muteType,
                                         boolean connected,
                                         Long callStreamId,
                                         IRoomManager roomManager) {
-        super(web, dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo, rtpEndpointInfo, roomName, participantId, muteType, roomManager, log);
+        super(web, dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo, rtpEndpointInfo, roomId, participantId, muteType, roomManager, log);
         this.connected = connected;
         this.callStreamId = callStreamId;
         this.recorderEndpoint = DistributedRemoteObject.retrieveFromInfo(recEndpointInfo, kurentoClient);

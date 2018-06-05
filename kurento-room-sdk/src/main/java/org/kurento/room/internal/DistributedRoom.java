@@ -7,6 +7,7 @@ import com.hazelcast.mapreduce.aggregation.Aggregations;
 import com.hazelcast.mapreduce.aggregation.Supplier;
 import org.kurento.client.*;
 import org.kurento.room.api.RoomHandler;
+import org.kurento.room.api.pojo.RoomId;
 import org.kurento.room.distributed.interfaces.IChangeListener;
 import org.kurento.room.distributed.interfaces.IDistributedNamingService;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
@@ -19,7 +20,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import sun.reflect.generics.reflectiveObjects.NotImplementedException;
 
 import javax.annotation.PostConstruct;
 import java.util.Collection;
@@ -46,7 +46,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
     @Autowired
     private ApplicationContext context;
 
-    private final String name;
+    private final RoomId roomId;
     private KurentoClient kurentoClient;
     private volatile boolean pipelineReleased = false;
     private boolean destroyKurentoClient;
@@ -68,10 +68,10 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     @PostConstruct
     public void init() {
-        participants = hazelcastInstance.getMap(distributedNamingService.getName("participants-" + name));
-        pipelineCreateLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineCreateLock-" + name));
-        pipelineReleaseLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineReleaseLock-" + name));
-        roomLock = hazelcastInstance.getLock(distributedNamingService.getName("lock-room-" + name));
+        participants = hazelcastInstance.getMap(distributedNamingService.getName("participants-" + roomId.getRoomName()));
+        pipelineCreateLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineCreateLock-" + roomId.getRoomName()));
+        pipelineReleaseLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineReleaseLock-" + roomId.getRoomName()));
+        roomLock = hazelcastInstance.getLock(distributedNamingService.getName("lock-room-" + roomId.getRoomName()));
     }
 
     /**
@@ -84,22 +84,22 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         roomLock.destroy();
     }
 
-    public DistributedRoom(String roomName, KurentoClient kurentoClient,
+    public DistributedRoom(RoomId roomId, KurentoClient kurentoClient,
                            boolean destroyKurentoClient) {
-        this.name = roomName;
+        this.roomId = roomId;
         this.kurentoClient = kurentoClient;
         this.destroyKurentoClient = destroyKurentoClient;
         this.kmsUri = ReflectionUtils.getKmsUri(kurentoClient);
         // log.debug("New DistributedRoom instance, named '{}'", roomName);
     }
 
-    public DistributedRoom(String roomName, KurentoClient kurentoClient,
+    public DistributedRoom(RoomId roomId, KurentoClient kurentoClient,
                            boolean destroyKurentoClient, boolean closed,
                            DistributedRemoteObject pipelineInfo,
                            DistributedRemoteObject compositeInfo,
                            DistributedRemoteObject hubportInfo,
                            DistributedRemoteObject recorderInfo) {
-        this(roomName, kurentoClient, destroyKurentoClient);
+        this(roomId, kurentoClient, destroyKurentoClient);
         this.closed = closed;
         this.pipeline = DistributedRemoteObject.retrieveFromInfo(pipelineInfo, kurentoClient);
         this.compositeElement = DistributedRemoteObject.retrieveFromInfo(compositeInfo, kurentoClient);
@@ -123,7 +123,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
                 return;
             }
 
-            log.info("ROOM {}: Creating Composite node for recording", name);
+            log.info("ROOM {}: Creating Composite node for recording", roomId.getRoomName());
 
             // Create the elements needed for global recording
             compositeElement = new Composite.Builder(pipeline).build();
@@ -134,7 +134,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             // Start the record
             recorderEndpoint.record();
         } catch (Exception e) {
-            log.error("Unable to create Composite node for room '{}'", name, e);
+            log.error("Unable to create Composite node for room '{}'", roomId.getRoomName(), e);
         } finally {
             pipelineCreateLock.unlock();
             listener.onChange(this);
@@ -151,7 +151,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
                 return;
             }
 
-            log.debug("Stopping global recording for room {}...", name);
+            log.debug("Stopping global recording for room {}...", roomId.getRoomName());
             recorderEndpoint.stop();
         } finally {
             pipelineCreateLock.unlock();
@@ -161,7 +161,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     @Override
      public String getName() {
-        return name;
+        return roomId.getRoomName();
     }
 
     @Override
@@ -182,19 +182,19 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     @Override
     public void join(String participantId, String userName, boolean dataChannels, boolean webParticipant) throws RoomException {
-        log.info("KMS: Using kmsUri {} for {}", kmsUri, name);
+        log.info("KMS: Using kmsUri {} for {}", kmsUri, roomId.getRoomName());
         roomLock.lock();
 
         try {
             checkClosed();
 
             if (userName == null || userName.isEmpty()) {
-                throw new RoomException(RoomException.Code.GENERIC_ERROR_CODE, "Empty user name is not allowed");
+                throw new RoomException(RoomException.Code.GENERIC_ERROR_CODE, "Empty user roomId.getRoomName() is not allowed");
             }
             for (IParticipant p : participants.values()) {
                 if (p.getName().equals(userName)) {
                     throw new RoomException(RoomException.Code.EXISTING_USER_IN_ROOM_ERROR_CODE,
-                            "User '" + userName + "' already exists in room '" + name + "'");
+                            "User '" + userName + "' already exists in room '" + roomId.getRoomName() + "'");
                 }
             }
 
@@ -208,7 +208,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 //            participants.put(participantId, new DistributedParticipant(participantId, userName, this,
 //                    dataChannels, webParticipant));
 
-            log.info("ROOM {}: Added participant {}", name, userName);
+            log.info("ROOM {}: Added participant {}", roomId.getRoomName(), userName);
         } finally {
             roomLock.unlock();
         }
@@ -226,7 +226,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             participant1.getNewOrExistingSubscriber(participant.getName(), streamId);
         }
 
-        log.debug("ROOM {}: Virtually subscribed other participants {} to new publisher {}", name,
+        log.debug("ROOM {}: Virtually subscribed other participants {} to new publisher {}", roomId.getRoomName(),
                 participants.values(), participant.getName());
     }
 
@@ -242,7 +242,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
             subscriber.cancelReceivingMedia(participant.getName(), streamId);
         }
 
-        log.debug("ROOM {}: Unsubscribed other participants {} from the publisher {}", name,
+        log.debug("ROOM {}: Unsubscribed other participants {} from the publisher {}", roomId.getRoomName(),
                 participants.values(), participant.getName());
     }
 
@@ -253,11 +253,11 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         IParticipant participant = participants.get(participantId);
         if (participant == null) {
             throw new RoomException(RoomException.Code.USER_NOT_FOUND_ERROR_CODE,
-                    "User #" + participantId + " not found in room '" + name + "'");
+                    "User #" + participantId + " not found in room '" + roomId.getRoomName() + "'");
         }
 //        participant.releaseAllFilters();
 
-        log.info("PARTICIPANT {}: Leaving room {}", participant.getName(), this.name);
+        log.info("PARTICIPANT {}: Leaving room {}", participant.getName(), this.roomId.getRoomName());
         Enumeration<String> publisherStreamIds = participant.getPublisherStreamIds();
         while (publisherStreamIds.hasMoreElements()) {
             String streamId = publisherStreamIds.nextElement();
@@ -320,25 +320,25 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
                 closePipeline();
             }
 
-            log.debug("Room {} closed", this.name);
+            log.debug("Room {} closed", this.roomId.getRoomName());
             if (destroyKurentoClient && kurentoClient != null) {
                 kurentoClient.destroy();
             }
 
             this.closed = true;
         } else {
-            log.warn("Closing an already closed room '{}'", this.name);
+            log.warn("Closing an already closed room '{}'", this.roomId.getRoomName());
         }
     }
 
     @Override
     public void sendIceCandidate(String participantId, String participantName, String endpointName, String streamId, IceCandidate candidate) {
-        this.roomHandler.onIceCandidate(name, participantId, participantName, endpointName, streamId, candidate);
+        this.roomHandler.onIceCandidate(roomId.getRoomName(), participantId, participantName, endpointName, streamId, candidate);
     }
 
     @Override
     public void sendMediaError(String participantId, String participantName, String description) {
-        this.roomHandler.onMediaElementError(name, participantId, participantName, description);
+        this.roomHandler.onMediaElementError(roomId.getRoomName(), participantId, participantName, description);
     }
 
     @Override
@@ -348,7 +348,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     private void checkClosed() {
         if (closed) {
-            throw new RoomException(RoomException.Code.ROOM_CLOSED_ERROR_CODE, "The room '" + name + "' is closed");
+            throw new RoomException(RoomException.Code.ROOM_CLOSED_ERROR_CODE, "The room '" + roomId.getRoomName() + "' is closed");
         }
     }
 
@@ -361,7 +361,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         participants.remove(participant.getId());
         ((DistributedParticipant)participant).destroyHazelcastResources();
 
-        log.debug("ROOM {}: Cancel receiving media from user '{}' for other users", this.name,
+        log.debug("ROOM {}: Cancel receiving media from user '{}' for other users", this.roomId.getRoomName(),
                 participant.getName());
 
         for (IParticipant other : participants.values()) {
@@ -399,7 +399,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
                 return;
             }
 
-            log.info("ROOM {}: Creating MediaPipeline", name);
+            log.info("ROOM {}: Creating MediaPipeline", roomId.getRoomName());
             try {
                 // This method must not be called when we do not have a KMS provider!
                 if (kurentoClient == null) {
@@ -414,29 +414,29 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 //                    public void onSuccess(MediaPipeline result) throws Exception {
 //                        pipeline = result;
 //                        pipelineLatch.countDown();
-//                        log.debug("ROOM {}: Created MediaPipeline", name);
+//                        log.debug("ROOM {}: Created MediaPipeline", roomId.getRoomName());
 //                    }
 //
 //                    @Override
 //                    public void onError(Throwable cause) throws Exception {
 //                        pipelineLatch.countDown();
-//                        log.error("ROOM {}: Failed to create MediaPipeline", name, cause);
+//                        log.error("ROOM {}: Failed to create MediaPipeline", roomId.getRoomName(), cause);
 //                    }
 //                });
             } catch (Exception e) {
-                log.error("Unable to create media pipeline for room '{}'", name, e);
+                log.error("Unable to create media pipeline for room '{}'", roomId.getRoomName(), e);
 //                pipelineLatch.countDown();
             }
             if (getPipeline() == null) {
-                throw new RoomException(RoomException.Code.ROOM_CANNOT_BE_CREATED_ERROR_CODE, "Unable to create media pipeline for room '" + name + "'");
+                throw new RoomException(RoomException.Code.ROOM_CANNOT_BE_CREATED_ERROR_CODE, "Unable to create media pipeline for room '" + roomId.getRoomName() + "'");
             }
 
             pipeline.addErrorListener(new EventListener<ErrorEvent>() {
                 @Override
                 public void onEvent(ErrorEvent event) {
                     final String desc = event.getType() + ": " + event.getDescription() + "(errCode=" + event.getErrorCode() + ")";
-                    log.warn("ROOM {}: Pipeline error encountered: {}", name, desc);
-                    roomHandler.onPipelineError(name, (Collection<IParticipant>) getParticipants(), desc);
+                    log.warn("ROOM {}: Pipeline error encountered: {}", roomId.getRoomName(), desc);
+                    roomHandler.onPipelineError(roomId.getRoomName(), (Collection<IParticipant>) getParticipants(), desc);
                 }
             });
         } finally {
@@ -464,13 +464,13 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 //
 //                @Override
 //                public void onSuccess(Void result) throws Exception {
-//                    log.debug("ROOM {}: Released Pipeline", DistributedRoom.this.name);
+//                    log.debug("ROOM {}: Released Pipeline", DistributedRoom.this.roomId.getRoomName());
 //                    pipelineReleased = true;
 //                }
 //
 //                @Override
 //                public void onError(Throwable cause) throws Exception {
-//                    log.warn("ROOM {}: Could not successfully release Pipeline", DistributedRoom.this.name, cause);
+//                    log.warn("ROOM {}: Could not successfully release Pipeline", DistributedRoom.this.roomId.getRoomName(), cause);
 //                    pipelineReleased = true;
 //                }
 //            });
@@ -508,4 +508,14 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     @Override
     public RecorderEndpoint getRecorderEndpoint() { return recorderEndpoint; }
+
+    @Override
+    public RoomId getId() {
+        return roomId;
+    }
+
+    @Override
+    public String getTenant(){
+        return roomId.getTenant();
+    }
 }

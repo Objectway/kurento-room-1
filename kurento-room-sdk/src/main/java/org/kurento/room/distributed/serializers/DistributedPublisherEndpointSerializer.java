@@ -6,6 +6,7 @@ import com.hazelcast.nio.serialization.StreamSerializer;
 import org.kurento.client.KurentoClient;
 import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.api.MutedMediaType;
+import org.kurento.room.api.pojo.RoomId;
 import org.kurento.room.endpoint.DistributedPublisherEndpoint;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.interfaces.IRoomManager;
@@ -44,7 +45,7 @@ public class DistributedPublisherEndpointSerializer implements StreamSerializer<
         out.writeBoolean(endpoint.isDataChannels());
         out.writeObject(webEndpointRemoteObj);
         out.writeObject(rtpEndpointRemoteObj);
-        out.writeUTF(endpoint.getOwner().getRoom().getName());
+        out.writeObject(endpoint.getOwner().getRoom().getId());
         out.writeUTF(endpoint.getOwner().getId());
         out.writeUTF(endpoint.getEndpointName());
         MutedMediaType muteType = endpoint.getMuteType();
@@ -72,7 +73,7 @@ public class DistributedPublisherEndpointSerializer implements StreamSerializer<
         boolean dataChannels = in.readBoolean();
         DistributedRemoteObject webEndpointRemoteObj = in.readObject();
         DistributedRemoteObject rtpEndpointRemoteObj = in.readObject();
-        String roomName = in.readUTF();
+        RoomId roomId = in.readObject();
         String participantId = in.readUTF();
         String endpointName = in.readUTF();
 
@@ -91,7 +92,7 @@ public class DistributedPublisherEndpointSerializer implements StreamSerializer<
         KurentoClient client = kmsManager.getKurentoClient(kmsUrl);
         IRoomManager roomManager = (IRoomManager) context.getBean("roomManager");
         return (DistributedPublisherEndpoint) context.getBean("distributedPublisherEndpoint", web, dataChannels, endpointName, kmsUrl, streamId, client, webEndpointRemoteObj, rtpEndpointRemoteObj,
-                recEndpointRemoteObj, passThruRemoteObj, hubportRemoteObj, roomName, participantId, muteType, connected, callStreamId, roomManager);
+                recEndpointRemoteObj, passThruRemoteObj, hubportRemoteObj, roomId, participantId, muteType, connected, callStreamId, roomManager);
     }
 
     @Override

@@ -6,6 +6,7 @@ import com.hazelcast.core.ILock;
 import org.kurento.client.*;
 import org.kurento.room.TurnKMSCredentials;
 import org.kurento.room.api.MutedMediaType;
+import org.kurento.room.api.pojo.RoomId;
 import org.kurento.room.internal.DistributedParticipant;
 import org.kurento.room.distributed.interfaces.IChangeListener;
 import org.kurento.room.distributed.interfaces.ICountDownLatchWrapper;
@@ -114,7 +115,7 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
                                     KurentoClient kurentoClient,
                                     DistributedRemoteObject webEndpointInfo,
                                     DistributedRemoteObject rtpEndpointInfo,
-                                    String roomName,
+                                    RoomId roomId,
                                     String participantId,
                                     MutedMediaType muteType,
                                     IRoomManager roomManager,
@@ -130,7 +131,7 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
         this.kmsUrl = kmsUrl;
         this.streamId = streamId;
         this.muteType = muteType;
-        IRoom room = roomManager.getRoomByName(roomName);
+        IRoom room = roomManager.getRoomById(roomId);
         this.owner = (DistributedParticipant) room.getParticipant(participantId);
         this.setListener(owner);
         this.pipeline = room.getPipeline();

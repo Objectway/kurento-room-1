@@ -33,6 +33,7 @@ public class ProtocolElements {
   public static final String LEAVEROOM_METHOD = "leaveRoom";
 
   public static final String JOINROOM_METHOD = "joinRoom";
+  public static final String JOINROOM_TENANT_PARAM = "tenant";
   public static final String JOINROOM_USER_PARAM = "user";
   public static final String JOINROOM_ROOM_PARAM = "room";
   public static final String JOINROOM_DATACHANNELS_PARAM = "dataChannels";

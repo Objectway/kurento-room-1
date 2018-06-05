@@ -23,7 +23,9 @@ import org.kurento.jsonrpc.Session;
 import org.kurento.jsonrpc.Transaction;
 import org.kurento.jsonrpc.message.Request;
 import org.kurento.room.NotificationRoomManager;
+import org.kurento.room.api.pojo.KurentoUserId;
 import org.kurento.room.api.pojo.ParticipantRequest;
+import org.kurento.room.api.pojo.RoomId;
 import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.internal.ProtocolElements;
@@ -55,6 +57,7 @@ public class JsonRpcUserControl {
       ExecutionException {
     String roomName = getStringParam(request, ProtocolElements.JOINROOM_ROOM_PARAM);
     String userName = getStringParam(request, ProtocolElements.JOINROOM_USER_PARAM);
+    String tenant = getStringParam(request, ProtocolElements.JOINROOM_TENANT_PARAM);
 
     boolean dataChannels = false;
     if (request.getParams().has(ProtocolElements.JOINROOM_DATACHANNELS_PARAM)) {
@@ -62,12 +65,15 @@ public class JsonRpcUserControl {
           .getAsBoolean();
     }
 
+    KurentoUserId userId = new KurentoUserId(userName, tenant);
+
     ParticipantSession participantSession = getParticipantSession(transaction);
     participantSession.setParticipantName(userName);
     participantSession.setRoomName(roomName);
     participantSession.setDataChannels(dataChannels);
+    participantSession.setUserId(userId);
 
-    roomManager.joinRoom(userName, roomName, dataChannels, true, participantRequest);
+    roomManager.joinRoom(userId, roomName, dataChannels, true, participantRequest);
   }
 
   public void publishVideo(Transaction transaction, Request<JsonObject> request,
@@ -122,17 +128,21 @@ public class JsonRpcUserControl {
     boolean exists = false;
     String pid = participantRequest.getParticipantId();
     // trying with room info from session
+    ParticipantSession participantSession = null;
     String roomName = null;
     if (transaction != null) {
-      roomName = getParticipantSession(transaction).getRoomName();
+      participantSession = getParticipantSession(transaction);
+      roomName = participantSession.getRoomName();
     }
     if (roomName == null) { // null when afterConnectionClosed
       log.warn("No room information found for participant with session Id {}. "
           + "Using the admin method to evict the user.", pid);
       leaveRoomAfterConnClosed(pid);
     } else {
+      // here roomName != null then also participantSession is not null (getParticipantSession return never null)
       // sanity check, don't call leaveRoom unless the id checks out
-      for (UserParticipant part : roomManager.getParticipants(roomName)) {
+      RoomId roomId = new RoomId(participantSession.getUserId().getTenant(), roomName);
+      for (UserParticipant part : roomManager.getParticipants(roomId)) {
         if (part.getParticipantId().equals(participantRequest.getParticipantId())) {
           exists = true;
           break;

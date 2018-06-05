@@ -1,13 +1,15 @@
 package org.kurento.room.interfaces;
 
 import org.kurento.client.*;
-import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.api.KurentoClientSessionInfo;
 import org.kurento.room.api.MutedMediaType;
+import org.kurento.room.api.pojo.KurentoUserId;
+import org.kurento.room.api.pojo.RoomId;
 import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.exception.RoomException;
 
 import javax.annotation.PreDestroy;
+import java.util.HashSet;
 import java.util.Set;
 
 /**
@@ -27,7 +29,7 @@ public interface IRoomManager {
      * <strong>Dev advice:</strong> Send notifications to the existing participants in the room to
      * inform about the new peer.
      *
-     * @param userName       name or identifier of the user in the room. Will be used to identify
+     * @param userId       name or identifier of the user in the room. Will be used to identify
      *                       her WebRTC media
      *                       peer (from the client-side).
      * @param roomName       name or identifier of the room
@@ -38,7 +40,6 @@ public interface IRoomManager {
      *                       {@link WebRtcEndpoint}); if <strong>false</strong>, the media endpoint
      *                       will be a
      *                       {@link RtpEndpoint}, with no ICE implementation
-     * @param webParticipant
      * @param kcSessionInfo  sessionInfo bean to be used to create the room in case it doesn't
      *                       exist (if null, the
      *                       room will not be created)
@@ -46,7 +47,7 @@ public interface IRoomManager {
      * @return set of existing peers of type {@link UserParticipant}, can be empty if first
      * @throws RoomException on error while joining (like the room is not found or is closing)
      */
-    Set<UserParticipant> joinRoom(String userName, String roomName, boolean dataChannels, boolean webParticipant, KurentoClientSessionInfo kcSessionInfo, String participantId) throws RoomException;
+    Set<UserParticipant> joinRoom(KurentoUserId userId, String roomName, boolean dataChannels, boolean webParticipant, KurentoClientSessionInfo kcSessionInfo, String participantId) throws RoomException;
 
     /**
      * Represents a client's notification that she's leaving the room. Will also close the room if
@@ -215,7 +216,7 @@ public interface IRoomManager {
      * <strong>Dev advice:</strong> Send notifications to all participants to inform that their room
      * has been forcibly closed.
      *
-     * @see IRoomManager#closeRoom(String)
+     * @see IRoomManager#closeRoom(RoomId)
      */
     @PreDestroy
     void close();
@@ -230,26 +231,26 @@ public interface IRoomManager {
      *
      * @return set of the rooms' identifiers (names)
      */
-    Set<String> getRooms();
+    HashSet<RoomId> getRooms();
 
     /**
      * Returns all the participants inside a room.
      *
-     * @param roomName name or identifier of the room
+     * @param roomId name or identifier of the room
      * @return set of {@link UserParticipant} POJOS (an instance contains the participant's identifier
      * and her user name)
      * @throws RoomException in case the room doesn't exist
      */
-    Set<UserParticipant> getParticipants(String roomName) throws RoomException;
+    Set<UserParticipant> getParticipants(RoomId roomId) throws RoomException;
 
     /**
      * Returns all the publishers (participants streaming their media) inside a room.
      *
-     * @param roomName name or identifier of the room
+     * @param roomId name or identifier of the room
      * @return set of {@link UserParticipant} POJOS representing the existing publishers
      * @throws RoomException in case the room doesn't exist
      */
-    Set<UserParticipant> getPublishers(String roomName) throws RoomException;
+    Set<UserParticipant> getPublishers(RoomId roomId) throws RoomException;
 
     /**
      * Returns all the subscribers (participants subscribed to a least one stream of another user)
@@ -257,11 +258,11 @@ public interface IRoomManager {
      * included in the returned values unless it requests explicitly a connection to another user's
      * stream.
      *
-     * @param roomName name or identifier of the room
+     * @param roomId name or identifier of the room
      * @return set of {@link UserParticipant} POJOS representing the existing subscribers
      * @throws RoomException in case the room doesn't exist
      */
-    Set<UserParticipant> getSubscribers(String roomName) throws RoomException;
+    Set<UserParticipant> getSubscribers(RoomId roomId) throws RoomException;
 
     /**
      * Returns the peer's publishers (participants from which the peer is receiving media). The own
@@ -295,28 +296,17 @@ public interface IRoomManager {
     boolean isPublisherStreaming(String participantId) throws RoomException;
 
     /**
-     * Creates a room if it doesn't already exist. The room's name will be indicated by the session
-     * info bean.
-     *
-     * @param kcSessionInfo bean that will be passed to the {@link KurentoClientProvider} in order
-     *                      to obtain the
-     *                      {@link KurentoClient} that will be used by the room
-     * @throws RoomException in case of error while creating the room
-     */
-    void createRoom(KurentoClientSessionInfo kcSessionInfo) throws RoomException;
-
-    /**
      * Closes an existing room by releasing all resources that were allocated for the room. Once
      * closed, the room can be reopened (will be empty and it will use another Media Pipeline).
      * Existing participants will be evicted. <br/>
      * <strong>Dev advice:</strong> The room event handler should send notifications to the existing
      * participants in the room to inform that the room was forcibly closed.
      *
-     * @param roomName name or identifier of the room
+     * @param roomId name or identifier of the room
      * @return set of {@link UserParticipant} POJOS representing the room's participants
      * @throws RoomException in case the room doesn't exist or has been already closed
      */
-    Set<UserParticipant> closeRoom(String roomName) throws RoomException;
+    Set<UserParticipant> closeRoom(RoomId roomId) throws RoomException;
 
     /**
      * Returns the media pipeline used by the participant.
@@ -334,7 +324,7 @@ public interface IRoomManager {
      * @return the name of the room
      * @throws RoomException in case the participant doesn't exist
      */
-    String getRoomName(String participantId) throws RoomException;
+    RoomId getRoomId(String participantId) throws RoomException;
 
     /**
      * Finds the participant's username.
@@ -358,4 +348,6 @@ public interface IRoomManager {
     // ------------------ HELPERS ------------------------------------------
 
     IRoom getRoomByName(String name);
+
+    IRoom getRoomById(RoomId roomId);
 }
