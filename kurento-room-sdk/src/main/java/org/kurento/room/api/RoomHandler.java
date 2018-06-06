@@ -17,7 +17,7 @@
 package org.kurento.room.api;
 
 import org.kurento.client.IceCandidate;
-import org.kurento.room.api.pojo.RoomId;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.interfaces.IParticipant;
 
 import java.util.Collection;
@@ -44,7 +44,7 @@ public interface RoomHandler {
    * @param candidate
 *          the gathered {@link IceCandidate}
    */
-  void onIceCandidate(RoomId roomId, String participantId, String participantName, String endpoint, final String streamId, IceCandidate candidate);
+  void onIceCandidate(KurentoRoomId roomId, String participantId, String participantName, String endpoint, final String streamId, IceCandidate candidate);
 
   /**
    * Called as a result of an error intercepted on a media element of a participant. The participant
@@ -57,7 +57,7 @@ public interface RoomHandler {
  *          name of the participant
    * @param errorDescription
    */
-  void onMediaElementError(RoomId roomId, String participantId, String participantName, String errorDescription);
+  void onMediaElementError(KurentoRoomId roomId, String participantId, String participantName, String errorDescription);
 
   /**
    * Called as a result of an error intercepted on the media pipeline. The affected participants
@@ -68,5 +68,5 @@ public interface RoomHandler {
    *          the participants
    * @param errorDescription
    */
-  void onPipelineError(RoomId roomId, Collection<IParticipant> participants, String errorDescription);
+  void onPipelineError(KurentoRoomId roomId, Collection<IParticipant> participants, String errorDescription);
 }

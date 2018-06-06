@@ -175,20 +175,20 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
     @Override
     public String preparePublishConnection(String streamId) {
         log.info("USER {}: Request to publish video in room {} by "
-                + "initiating connection from server", this.name, this.room.getName());
+                + "initiating connection from server", this.name, this.room.getId());
 
         String sdpOffer = this.getPublisher(streamId).preparePublishConnection();
 
         log.trace("USER {}: Publishing SdpOffer is {} for streamId {}", this.name, sdpOffer, streamId);
         log.info("USER {}: Generated Sdp offer for publishing in room {} for streamId {}", this.name,
-                this.room.getName(), streamId);
+                this.room.getId(), streamId);
         return sdpOffer;
     }
 
     @Override
     public String publishToRoom(String streamId, String streamType, SdpType sdpType, String sdpString, boolean doLoopback, MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType) {
         log.info("USER {}: Request to publish video in room {} (sdp type {})", this.name,
-                this.room.getName(), sdpType);
+                this.room.getId(), sdpType);
         log.trace("USER {}: Publishing Sdp ({}) is {}", this.name, sdpType, sdpString);
 
         String sdpResponse = this.getPublisher(streamId).publish(sdpType, sdpString, doLoopback,
@@ -198,7 +198,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         publishersStreamingFlags.set(streamId, true);
 
         log.trace("USER {}: Publishing Sdp ({}) is {}", this.name, sdpType, sdpResponse);
-        log.info("USER {}: Is now publishing video in room {} streamId {} streamType {}", this.name, this.room.getName(), streamId, streamType);
+        log.info("USER {}: Is now publishing video in room {} streamId {} streamType {}", this.name, this.room.getId(), streamId, streamType);
 
         return sdpResponse;
     }
@@ -206,7 +206,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
     @Override
     public void unpublishMedia(String streamId) {
         log.debug("PARTICIPANT {}: unpublishing media stream from room {}", this.name,
-                this.room.getName());
+                this.room.getId());
         releasePublisherEndpoint(streamId);
     }
 
@@ -215,7 +215,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         final String senderName = sender.getName();
 
         log.info("USER {}: Request to receive media from {} in room {}", this.name, senderName,
-                this.room.getName());
+                this.room.getId());
         log.trace("USER {}: SdpOffer for {} is {}", this.name, senderName, sdpOffer);
 
         if (senderName.equals(this.name)) {
@@ -270,7 +270,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
             String sdpAnswer = subscriber.subscribe(sdpOffer, sender.getPublisher(streamId));
             log.trace("USER {}: Subscribing SdpAnswer is {} with streamId {}", this.name, sdpAnswer, streamId);
             log.info("USER {}: Is now receiving video from {} in room {} with streamId {}", this.name, senderName,
-                    this.room.getName(), streamId);
+                    this.room.getId(), streamId);
             return sdpAnswer;
         } catch (KurentoServerException e) {
             // TODO Check object status when KurentoClient sets this info in the

@@ -4,7 +4,7 @@ import org.kurento.client.KurentoClient;
 import org.kurento.client.MediaPipeline;
 import org.kurento.client.MediaType;
 import org.kurento.room.api.MutedMediaType;
-import org.kurento.room.api.pojo.RoomId;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IPublisherEndpoint;
@@ -47,7 +47,7 @@ public class DistributedSubscriberEndpoint extends DistributedMediaEndpoint impl
                                          KurentoClient kurentoClient,
                                          DistributedRemoteObject webEndpointInfo,
                                          DistributedRemoteObject rtpEndpointInfo,
-                                         RoomId roomId,
+                                         KurentoRoomId roomId,
                                          String participantId,
                                          MutedMediaType muteType,
                                          boolean connectedToPublisher,

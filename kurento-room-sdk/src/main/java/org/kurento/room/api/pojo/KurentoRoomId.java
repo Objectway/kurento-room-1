@@ -6,14 +6,14 @@ import java.io.Serializable;
  * Created by Sebastiano Motta on 05/06/2018.
  */
 
-public class RoomId implements Serializable {
+public class KurentoRoomId implements Serializable {
 
 	private static final long serialVersionUID = 1L;
 
 	private String tenant;
 	private String roomName;
 
-	public RoomId(String tenant, String roomName) {
+	public KurentoRoomId(String tenant, String roomName) {
 		this.tenant = tenant;
 		this.roomName = roomName;
 	}
@@ -29,10 +29,10 @@ public class RoomId implements Serializable {
 	@Override public boolean equals(Object o) {
 		if (this == o)
 			return true;
-		if (!(o instanceof RoomId))
+		if (!(o instanceof KurentoRoomId))
 			return false;
 
-		RoomId roomId = (RoomId) o;
+		KurentoRoomId roomId = (KurentoRoomId) o;
 
 		if (tenant != null ? !tenant.equals(roomId.tenant) : roomId.tenant != null)
 			return false;

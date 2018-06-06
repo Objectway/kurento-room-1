@@ -22,7 +22,7 @@ import org.kurento.client.MediaType;
 import org.kurento.room.api.*;
 import org.kurento.room.api.pojo.KurentoUserId;
 import org.kurento.room.api.pojo.ParticipantRequest;
-import org.kurento.room.api.pojo.RoomId;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IRoomManager;
@@ -107,7 +107,7 @@ public class NotificationRoomManager {
   public void leaveRoom(ParticipantRequest request) {
     String pid = request.getParticipantId();
     Set<UserParticipant> remainingParticipants = null;
-    RoomId roomId = null;
+    KurentoRoomId roomId = null;
     String userName = null;
     try {
       roomId = internalManager.getRoomId(pid);
@@ -290,28 +290,28 @@ public class NotificationRoomManager {
   /**
    * @see RoomManager#getRooms()
    */
-  public Set<RoomId> getRooms() {
+  public Set<KurentoRoomId> getRooms() {
     return internalManager.getRooms();
   }
 
   /**
    * @see RoomManager#getParticipants(String)
    */
-  public Set<UserParticipant> getParticipants(RoomId roomId) throws RoomException {
+  public Set<UserParticipant> getParticipants(KurentoRoomId roomId) throws RoomException {
     return internalManager.getParticipants(roomId);
   }
 
   /**
    * @see RoomManager#getPublishers(String)
    */
-  public Set<UserParticipant> getPublishers(RoomId roomId) throws RoomException {
+  public Set<UserParticipant> getPublishers(KurentoRoomId roomId) throws RoomException {
     return internalManager.getPublishers(roomId);
   }
 
   /**
    * @see RoomManager#getSubscribers(String)
    */
-  public Set<UserParticipant> getSubscribers(RoomId roomId) throws RoomException {
+  public Set<UserParticipant> getSubscribers(KurentoRoomId roomId) throws RoomException {
     return internalManager.getSubscribers(roomId);
   }
 
@@ -355,7 +355,7 @@ public class NotificationRoomManager {
    * @see RoomManager#closeRoom(String)
    * @param roomId
    */
-  public void closeRoom(RoomId roomId) throws RoomException {
+  public void closeRoom(KurentoRoomId roomId) throws RoomException {
     Set<UserParticipant> participants = internalManager.closeRoom(roomId);
     notificationRoomHandler.onRoomClosed(roomId, participants);
   }

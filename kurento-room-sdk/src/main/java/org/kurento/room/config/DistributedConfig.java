@@ -3,7 +3,7 @@ package org.kurento.room.config;
 import org.kurento.client.KurentoClient;
 import org.kurento.client.MediaPipeline;
 import org.kurento.room.api.MutedMediaType;
-import org.kurento.room.api.pojo.RoomId;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.internal.DistributedParticipant;
 import org.kurento.room.internal.DistributedRoom;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
@@ -21,7 +21,7 @@ import org.springframework.context.annotation.Scope;
 public class DistributedConfig {
     @Bean
     @Scope("prototype")
-    public DistributedRoom distributedRoom(final  RoomId roomId, final KurentoClient kurentoClient, final boolean destroyKurentoClient, final boolean closed,
+    public DistributedRoom distributedRoom(final KurentoRoomId roomId, final KurentoClient kurentoClient, final boolean destroyKurentoClient, final boolean closed,
                                            final DistributedRemoteObject pipelineInfo,
                                            final DistributedRemoteObject compositeInfo,
                                            final DistributedRemoteObject hubportInfo,
@@ -31,7 +31,7 @@ public class DistributedConfig {
 
     @Bean
     @Scope("prototype")
-    public DistributedRoom distributedRoom(final RoomId roomId, final KurentoClient kurentoClient, final boolean destroyKurentoClient) {
+    public DistributedRoom distributedRoom(final KurentoRoomId roomId, final KurentoClient kurentoClient, final boolean destroyKurentoClient) {
         return new DistributedRoom(roomId, kurentoClient, destroyKurentoClient);
     }
 
@@ -54,7 +54,7 @@ public class DistributedConfig {
                                                                      DistributedRemoteObject recEndpointInfo,
                                                                      DistributedRemoteObject passThrouInfo,
                                                                      DistributedRemoteObject hubportInfo,
-                                                                     RoomId roomId,
+                                                                     KurentoRoomId roomId,
                                                                      String participantId,
                                                                      MutedMediaType muteType,
                                                                      boolean connected,
@@ -82,7 +82,7 @@ public class DistributedConfig {
                                                                        KurentoClient kurentoClient,
                                                                        DistributedRemoteObject webEndpointInfo,
                                                                        DistributedRemoteObject rtpEndpointInfo,
-                                                                       RoomId roomId,
+                                                                       KurentoRoomId roomId,
                                                                        String participantId,
                                                                        MutedMediaType muteType,
                                                                        boolean connectedToPublisher,

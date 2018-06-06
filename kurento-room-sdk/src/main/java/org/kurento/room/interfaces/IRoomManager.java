@@ -4,7 +4,7 @@ import org.kurento.client.*;
 import org.kurento.room.api.KurentoClientSessionInfo;
 import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.api.pojo.KurentoUserId;
-import org.kurento.room.api.pojo.RoomId;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.exception.RoomException;
 
@@ -216,7 +216,7 @@ public interface IRoomManager {
      * <strong>Dev advice:</strong> Send notifications to all participants to inform that their room
      * has been forcibly closed.
      *
-     * @see IRoomManager#closeRoom(RoomId)
+     * @see IRoomManager#closeRoom(KurentoRoomId)
      */
     @PreDestroy
     void close();
@@ -231,7 +231,7 @@ public interface IRoomManager {
      *
      * @return set of the rooms' identifiers (names)
      */
-    HashSet<RoomId> getRooms();
+    HashSet<KurentoRoomId> getRooms();
 
     /**
      * Returns all the participants inside a room.
@@ -241,7 +241,7 @@ public interface IRoomManager {
      * and her user name)
      * @throws RoomException in case the room doesn't exist
      */
-    Set<UserParticipant> getParticipants(RoomId roomId) throws RoomException;
+    Set<UserParticipant> getParticipants(KurentoRoomId roomId) throws RoomException;
 
     /**
      * Returns all the publishers (participants streaming their media) inside a room.
@@ -250,7 +250,7 @@ public interface IRoomManager {
      * @return set of {@link UserParticipant} POJOS representing the existing publishers
      * @throws RoomException in case the room doesn't exist
      */
-    Set<UserParticipant> getPublishers(RoomId roomId) throws RoomException;
+    Set<UserParticipant> getPublishers(KurentoRoomId roomId) throws RoomException;
 
     /**
      * Returns all the subscribers (participants subscribed to a least one stream of another user)
@@ -262,7 +262,7 @@ public interface IRoomManager {
      * @return set of {@link UserParticipant} POJOS representing the existing subscribers
      * @throws RoomException in case the room doesn't exist
      */
-    Set<UserParticipant> getSubscribers(RoomId roomId) throws RoomException;
+    Set<UserParticipant> getSubscribers(KurentoRoomId roomId) throws RoomException;
 
     /**
      * Returns the peer's publishers (participants from which the peer is receiving media). The own
@@ -306,7 +306,7 @@ public interface IRoomManager {
      * @return set of {@link UserParticipant} POJOS representing the room's participants
      * @throws RoomException in case the room doesn't exist or has been already closed
      */
-    Set<UserParticipant> closeRoom(RoomId roomId) throws RoomException;
+    Set<UserParticipant> closeRoom(KurentoRoomId roomId) throws RoomException;
 
     /**
      * Returns the media pipeline used by the participant.
@@ -324,7 +324,7 @@ public interface IRoomManager {
      * @return the name of the room
      * @throws RoomException in case the participant doesn't exist
      */
-    RoomId getRoomId(String participantId) throws RoomException;
+    KurentoRoomId getRoomId(String participantId) throws RoomException;
 
     /**
      * Finds the participant's username.
@@ -349,5 +349,5 @@ public interface IRoomManager {
 
     IRoom getRoomByName(String name);
 
-    IRoom getRoomById(RoomId roomId);
+    IRoom getRoomById(KurentoRoomId roomId);
 }

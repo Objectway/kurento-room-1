@@ -20,7 +20,7 @@ import java.util.Set;
 
 import org.kurento.room.NotificationRoomManager;
 import org.kurento.room.api.pojo.ParticipantRequest;
-import org.kurento.room.api.pojo.RoomId;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.exception.RoomException;
 
@@ -204,7 +204,7 @@ public interface NotificationRoomHandler extends RoomHandler {
   void onRecvIceCandidate(ParticipantRequest request, RoomException error);
 
   /**
-   * Called as a result of {@link NotificationRoomManager#closeRoom(org.kurento.room.api.pojo.RoomId)} -
+   * Called as a result of {@link NotificationRoomManager#closeRoom(KurentoRoomId)} -
    * application-originated method, not as a consequence of a client request. All resources on the
    * server, associated with the room, have been released. The existing participants in the room
    * should be notified of this event so that the client-side application acts accordingly.
@@ -213,7 +213,7 @@ public interface NotificationRoomHandler extends RoomHandler {
    * @param participants
    *          instances of {@link UserParticipant} POJO representing the peers of the closed room
    */
-  void onRoomClosed(RoomId roomId, Set<UserParticipant> participants);
+  void onRoomClosed(KurentoRoomId roomId, Set<UserParticipant> participants);
 
   /**
    * Called as a result of {@link NotificationRoomManager#evictParticipant(String)} -

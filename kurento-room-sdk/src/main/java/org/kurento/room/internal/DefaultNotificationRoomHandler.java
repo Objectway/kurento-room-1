@@ -23,7 +23,7 @@ import org.kurento.client.IceCandidate;
 import org.kurento.room.api.NotificationRoomHandler;
 import org.kurento.room.api.UserNotificationService;
 import org.kurento.room.api.pojo.ParticipantRequest;
-import org.kurento.room.api.pojo.RoomId;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.exception.RoomException;
 
@@ -47,7 +47,7 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
   }
 
   @Override
-  public void onRoomClosed(RoomId roomId, Set<UserParticipant> participants) {
+  public void onRoomClosed(KurentoRoomId roomId, Set<UserParticipant> participants) {
     JsonObject notifParams = new JsonObject();
     notifParams.addProperty(ProtocolElements.ROOMCLOSED_ROOM_PARAM, roomId.getRoomName());
 //    for (UserParticipant participant : participants) {
@@ -232,7 +232,7 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
   // ------------ EVENTS FROM ROOM HANDLER -----
 
   @Override
-  public void onIceCandidate(RoomId roomId, String participantId, String participantName, String endpointName, final String streamId,
+  public void onIceCandidate(KurentoRoomId roomId, String participantId, String participantName, String endpointName, final String streamId,
       IceCandidate candidate) {
     JsonObject params = new JsonObject();
     params.addProperty(ProtocolElements.ICECANDIDATE_EPNAME_PARAM, endpointName);
@@ -245,7 +245,7 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
   }
 
   @Override
-  public void onPipelineError(RoomId roomId, Collection<IParticipant> participants, String description) {
+  public void onPipelineError(KurentoRoomId roomId, Collection<IParticipant> participants, String description) {
     JsonObject notifParams = new JsonObject();
     notifParams.addProperty(ProtocolElements.MEDIAERROR_ERROR_PARAM, description);
     for (IParticipant participant : participants) {
@@ -254,7 +254,7 @@ public class DefaultNotificationRoomHandler implements NotificationRoomHandler {
   }
 
   @Override
-  public void onMediaElementError(RoomId roomId, String participantId, String participantName, String description) {
+  public void onMediaElementError(KurentoRoomId roomId, String participantId, String participantName, String description) {
     JsonObject notifParams = new JsonObject();
     notifParams.addProperty(ProtocolElements.MEDIAERROR_ERROR_PARAM, description);
 //    notifService.sendNotification(participantId, ProtocolElements.MEDIAERROR_METHOD, notifParams);

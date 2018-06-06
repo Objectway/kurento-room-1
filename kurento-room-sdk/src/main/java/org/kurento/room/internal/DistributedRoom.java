@@ -7,7 +7,7 @@ import com.hazelcast.mapreduce.aggregation.Aggregations;
 import com.hazelcast.mapreduce.aggregation.Supplier;
 import org.kurento.client.*;
 import org.kurento.room.api.RoomHandler;
-import org.kurento.room.api.pojo.RoomId;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.distributed.interfaces.IChangeListener;
 import org.kurento.room.distributed.interfaces.IDistributedNamingService;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
@@ -46,7 +46,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
     @Autowired
     private ApplicationContext context;
 
-    private final RoomId roomId;
+    private final KurentoRoomId roomId;
     private KurentoClient kurentoClient;
     private volatile boolean pipelineReleased = false;
     private boolean destroyKurentoClient;
@@ -84,7 +84,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         roomLock.destroy();
     }
 
-    public DistributedRoom(RoomId roomId, KurentoClient kurentoClient,
+    public DistributedRoom(KurentoRoomId roomId, KurentoClient kurentoClient,
                            boolean destroyKurentoClient) {
         this.roomId = roomId;
         this.kurentoClient = kurentoClient;
@@ -93,7 +93,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
         // log.debug("New DistributedRoom instance, named '{}'", roomName);
     }
 
-    public DistributedRoom(RoomId roomId, KurentoClient kurentoClient,
+    public DistributedRoom(KurentoRoomId roomId, KurentoClient kurentoClient,
                            boolean destroyKurentoClient, boolean closed,
                            DistributedRemoteObject pipelineInfo,
                            DistributedRemoteObject compositeInfo,
@@ -510,7 +510,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
     public RecorderEndpoint getRecorderEndpoint() { return recorderEndpoint; }
 
     @Override
-    public RoomId getId() {
+    public KurentoRoomId getId() {
         return roomId;
     }
 

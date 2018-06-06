@@ -6,7 +6,7 @@ import com.hazelcast.nio.serialization.StreamSerializer;
 import org.kurento.client.KurentoClient;
 import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.DistributedRoomManager;
-import org.kurento.room.api.pojo.RoomId;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.internal.DistributedRoom;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -49,7 +49,7 @@ public class DistributedRoomSerializer implements StreamSerializer<DistributedRo
     @Override
     public DistributedRoom read(ObjectDataInput in)
             throws IOException {
-        RoomId roomId = in.readObject();
+        KurentoRoomId roomId = in.readObject();
         String kmsUri = in.readUTF();
         boolean destroyKurentoClient = in.readBoolean();
         boolean closed = in.readBoolean();

@@ -6,7 +6,7 @@ import com.hazelcast.nio.serialization.StreamSerializer;
 import org.kurento.client.KurentoClient;
 import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.api.MutedMediaType;
-import org.kurento.room.api.pojo.RoomId;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.endpoint.DistributedPublisherEndpoint;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.interfaces.IRoomManager;
@@ -73,7 +73,7 @@ public class DistributedPublisherEndpointSerializer implements StreamSerializer<
         boolean dataChannels = in.readBoolean();
         DistributedRemoteObject webEndpointRemoteObj = in.readObject();
         DistributedRemoteObject rtpEndpointRemoteObj = in.readObject();
-        RoomId roomId = in.readObject();
+        KurentoRoomId roomId = in.readObject();
         String participantId = in.readUTF();
         String endpointName = in.readUTF();
 

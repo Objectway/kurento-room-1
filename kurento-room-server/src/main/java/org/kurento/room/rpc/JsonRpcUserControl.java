@@ -25,7 +25,7 @@ import org.kurento.jsonrpc.message.Request;
 import org.kurento.room.NotificationRoomManager;
 import org.kurento.room.api.pojo.KurentoUserId;
 import org.kurento.room.api.pojo.ParticipantRequest;
-import org.kurento.room.api.pojo.RoomId;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.internal.ProtocolElements;
@@ -141,7 +141,7 @@ public class JsonRpcUserControl {
     } else {
       // here roomName != null then also participantSession is not null (getParticipantSession return never null)
       // sanity check, don't call leaveRoom unless the id checks out
-      RoomId roomId = new RoomId(participantSession.getUserId().getTenant(), roomName);
+      KurentoRoomId roomId = new KurentoRoomId(participantSession.getUserId().getTenant(), roomName);
       for (UserParticipant part : roomManager.getParticipants(roomId)) {
         if (part.getParticipantId().equals(participantRequest.getParticipantId())) {
           exists = true;
