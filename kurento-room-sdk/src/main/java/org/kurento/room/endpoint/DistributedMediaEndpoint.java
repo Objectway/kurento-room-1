@@ -30,7 +30,10 @@ import java.util.concurrent.locks.Lock;
  * Created by sturiale on 06/12/16.
  */
 public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
+
     private static Logger log;
+
+    public static String SEPARATOR = "§";
 
     @Autowired
     private HazelcastInstance hazelcastInstance;
@@ -536,11 +539,9 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
             throw new RoomException(RoomException.Code.MEDIA_WEBRTC_ENDPOINT_ERROR_CODE,
                     "Can't register event listener for null WebRtcEndpoint (ep: " + endpointName + ")");
         }
-        webEndpoint.addOnIceCandidateListener(new EventListener<OnIceCandidateEvent>() {
-            @Override
-            public void onEvent(OnIceCandidateEvent event) {
-                owner.sendIceCandidate(endpointName.substring(0, endpointName.lastIndexOf('_')), endpointName.substring(endpointName.lastIndexOf('_') + 1), event.getCandidate());
-            }
+        webEndpoint.addOnIceCandidateListener(event -> {
+            String[] endpointElements = endpointName.split(SEPARATOR);
+            owner.sendIceCandidate(endpointElements[1], endpointElements[2], event.getCandidate());
         });
     }
 

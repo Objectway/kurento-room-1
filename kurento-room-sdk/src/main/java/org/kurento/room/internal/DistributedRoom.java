@@ -26,6 +26,8 @@ import java.util.Collection;
 import java.util.Enumeration;
 import java.util.Set;
 
+import static org.kurento.room.endpoint.DistributedMediaEndpoint.SEPARATOR;
+
 /**
  * Created by sturiale on 02/12/16.
  */
@@ -68,10 +70,10 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
 
     @PostConstruct
     public void init() {
-        participants = hazelcastInstance.getMap(distributedNamingService.getName("participants-" + roomId.getRoomName()));
-        pipelineCreateLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineCreateLock-" + roomId.getRoomName()));
-        pipelineReleaseLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineReleaseLock-" + roomId.getRoomName()));
-        roomLock = hazelcastInstance.getLock(distributedNamingService.getName("lock-room-" + roomId.getRoomName()));
+        participants = hazelcastInstance.getMap(distributedNamingService.getName("participants-" + this.getTenant() + SEPARATOR + this.getName()));
+        pipelineCreateLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineCreateLock-" + this.getTenant() + SEPARATOR + this.getName()));
+        pipelineReleaseLock = hazelcastInstance.getLock(distributedNamingService.getName("pipelineReleaseLock-" + this.getTenant() + SEPARATOR + this.getName()));
+        roomLock = hazelcastInstance.getLock(distributedNamingService.getName("lock-room-" + this.getTenant() + SEPARATOR + this.getName()));
     }
 
     /**

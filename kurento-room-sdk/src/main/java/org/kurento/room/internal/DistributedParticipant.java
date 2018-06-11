@@ -27,6 +27,8 @@ import org.springframework.stereotype.Component;
 import javax.annotation.PostConstruct;
 import java.util.*;
 
+import static org.kurento.room.endpoint.DistributedMediaEndpoint.SEPARATOR;
+
 /**
  * Created by sturiale on 05/12/16.
  */
@@ -62,11 +64,11 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
 
     @PostConstruct
     public void init() {
-        publishers = hazelcastInstance.getMap(distributedNamingService.getName("participant-publishers" + name + "-" + room.getName()));
-        subscribers = hazelcastInstance.getMap(distributedNamingService.getName("participant-subscribers" + name + "-" + room.getName()));
-        registerCount = hazelcastInstance.getAtomicLong(distributedNamingService.getName("participant-register-count" + name + "-" + room.getName()));
+        publishers = hazelcastInstance.getMap(distributedNamingService.getName("participant-publishers-" + name + "-" + room.getTenant() + SEPARATOR + room.getName()));
+        subscribers = hazelcastInstance.getMap(distributedNamingService.getName("participant-subscribers-" + name + "-" + room.getTenant() + SEPARATOR + room.getName()));
+        registerCount = hazelcastInstance.getAtomicLong(distributedNamingService.getName("participant-register-count-" + name + "-" + room.getTenant() + SEPARATOR + room.getName()));
 //        publisherLatches = hazelcastInstance.getMap(distributedNamingService.getName("publisherLatches-" + name + "-" + room.getName()));
-        publishersStreamingFlags = hazelcastInstance.getMap(distributedNamingService.getName("publishersStreamingFlags-" + name + "-" + room.getName()));
+        publishersStreamingFlags = hazelcastInstance.getMap(distributedNamingService.getName("publishersStreamingFlags-" + name + "-" + room.getTenant() + SEPARATOR + room.getName()));
     }
 
     /**
@@ -434,29 +436,37 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
 
     @Override
     public ISubscriberEndpoint getNewOrExistingSubscriber(String remoteName, String streamId) {
-        remoteName = remoteName + "_" + streamId;
+
 //        DistributedSubscriberEndpoint sendingEndpoint = new DistributedSubscriberEndpoint(web, this, remoteName, this.room.getPipeline(), this.room.getKmsUri());
-        DistributedSubscriberEndpoint sendingEndpoint = (DistributedSubscriberEndpoint) context.getBean("distributedSubscriberEndpoint", web, this, remoteName, this.room.getPipeline(), this.room.getKmsUri(), streamId);
+
+        String endpointName = room.getTenant() + SEPARATOR + remoteName + SEPARATOR + streamId;
+
+        DistributedSubscriberEndpoint sendingEndpoint = (DistributedSubscriberEndpoint) context.getBean("distributedSubscriberEndpoint", web, this, endpointName, this.room.getPipeline(), this.room.getKmsUri(), streamId);
         DistributedSubscriberEndpoint existingSendingEndpoint =
-                this.subscribers.putIfAbsent(remoteName, sendingEndpoint);
+                this.subscribers.putIfAbsent(endpointName, sendingEndpoint);
 
 //        log.debug("Subscribers {}: new key {}", this.name, remoteName);
 
         if (existingSendingEndpoint != null) {
             sendingEndpoint = existingSendingEndpoint;
             log.trace("PARTICIPANT {}: Already exists a subscriber endpoint to user {}", this.name,
-                    remoteName);
+                    endpointName);
         } else {
-            log.debug("PARTICIPANT {}: New subscriber endpoint to user {}", this.name, remoteName);
+            log.debug("PARTICIPANT {}: New subscriber endpoint to user {}", this.name, endpointName);
         }
 
         return sendingEndpoint;
     }
 
     @Override
-    public IPublisherEndpoint getNewOrExistingPublisher(String endpointName, String streamId) {
+    public IPublisherEndpoint getNewOrExistingPublisher(String originalEndpointName, String streamId) {
 //        DistributedPublisherEndpoint publisherEndpoint = new DistributedPublisherEndpoint(web, dataChannels, this, endpointName + "_" + streamId, room.getPipeline(), room.getKmsUri());
-        DistributedPublisherEndpoint publisherEndpoint = (DistributedPublisherEndpoint) context.getBean("distributedPublisherEndpoint", web, dataChannels, this, endpointName + "_" + streamId, room.getPipeline(), room.getKmsUri(), streamId);
+
+        String endpointName = room.getTenant() + SEPARATOR + originalEndpointName + SEPARATOR + streamId;
+
+        DistributedPublisherEndpoint publisherEndpoint = (DistributedPublisherEndpoint) context
+                .getBean("distributedPublisherEndpoint", web, dataChannels, this, endpointName, room.getPipeline(), room.getKmsUri(), streamId);
+
         DistributedPublisherEndpoint existingPublisherEndpoint = publishers.putIfAbsent(streamId, publisherEndpoint);
 
         if (existingPublisherEndpoint != null) {
