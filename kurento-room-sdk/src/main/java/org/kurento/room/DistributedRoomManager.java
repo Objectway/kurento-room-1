@@ -15,6 +15,7 @@ import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.distributed.interfaces.IChangeListener;
 import org.kurento.room.distributed.interfaces.IDistributedNamingService;
 import org.kurento.room.distributed.model.DistributedIceCandidate;
+import org.kurento.room.endpoint.DistributedMediaEndpoint;
 import org.kurento.room.endpoint.SdpType;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IParticipant;
@@ -295,12 +296,14 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
 
     @Override
     public void muteSubscribedMedia(String remoteName, String streamId, MutedMediaType muteType, String participantId) throws RoomException {
-        remoteName = remoteName + "_" + streamId;
-        log.debug("Request [MUTE_SUBSCRIBED] remoteParticipant={} muteType={} ({})", remoteName,
-                muteType, participantId);
         IParticipant participant = getParticipant(participantId);
         String name = participant.getName();
         IRoom room = participant.getRoom();
+
+        remoteName = DistributedMediaEndpoint.toEndpointName(room.getTenant(), remoteName, streamId);
+        log.debug("Request [MUTE_SUBSCRIBED] remoteParticipant={} muteType={} ({})", remoteName,
+                muteType, participantId);
+
         IParticipant senderParticipant = room.getParticipantByName(remoteName);
         if (senderParticipant == null) {
             log.warn("PARTICIPANT {}: Requesting to mute streaming from {} "
@@ -320,11 +323,12 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
 
     @Override
     public void unmuteSubscribedMedia(String remoteName, String streamId, String participantId) throws RoomException {
-        remoteName = remoteName + "_" + streamId;
-        log.debug("Request [UNMUTE_SUBSCRIBED] remoteParticipant={} ({})", remoteName, participantId);
         IParticipant participant = getParticipant(participantId);
         String name = participant.getName();
         IRoom room = participant.getRoom();
+        remoteName = DistributedMediaEndpoint.toEndpointName(room.getTenant(), remoteName, streamId);
+        log.debug("Request [UNMUTE_SUBSCRIBED] remoteParticipant={} ({})", remoteName, participantId);
+
         IParticipant senderParticipant = room.getParticipantByName(remoteName);
         if (senderParticipant == null) {
             log.warn("PARTICIPANT {}: Requesting to unmute streaming from {} "

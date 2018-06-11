@@ -613,4 +613,46 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
     }
 
 
+    /**
+     * Given a composite name (eg. tenant§acuccu§microphone) returns the stream id (eg. microphone)
+     * This is needed because the subscribers map stores composite names as the keys.
+     *
+     * @param compositeName
+     * @return the stream id
+     */
+    public static String stripSenderName(final String compositeName) {
+        final String[] parts = compositeName.split(SEPARATOR);
+        if (parts.length != 3) {
+            return compositeName;
+        }
+
+        return parts[2];
+    }
+
+    /**
+     * Given a composite name (eg. tenant§acuccu§microphone) returns the name (eg. acuccu)
+     * This is needed because the subscribers map stores composite names as the keys.
+     *
+     * @param compositeName
+     * @return the name
+     */
+    public static String stripStreamId(final String compositeName) {
+        final String[] parts = compositeName.split(SEPARATOR);
+        if (parts.length != 3) {
+            return compositeName;
+        }
+
+        return parts[1];
+    }
+
+    /**
+     * Given the tenant, user and stream id, returns the composite endpoint name.
+     * @param tenant
+     * @param username
+     * @param streamId
+     * @return
+     */
+    public static String toEndpointName(final String tenant, final String username, final String streamId) {
+        return tenant + SEPARATOR + username + SEPARATOR + streamId;
+    }
 }

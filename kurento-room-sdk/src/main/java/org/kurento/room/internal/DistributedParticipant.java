@@ -234,21 +234,21 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
 
         log.debug("PARTICIPANT {}: Creating a subscriber endpoint to user {}", this.name, senderName);
 
-        DistributedSubscriberEndpoint subscriber = (DistributedSubscriberEndpoint)getNewOrExistingSubscriber(senderName, streamId);
+        DistributedSubscriberEndpoint subscriber = (DistributedSubscriberEndpoint) getNewOrExistingSubscriber(senderName, streamId);
 
         try {
             //CountDownLatch subscriberLatch = new CountDownLatch(1);
             SdpEndpoint oldMediaEndpoint = subscriber.createEndpoint(); // new CountDownLatchJava(subscriberLatch));
-//
-//            try {
-//                if (!subscriberLatch.await(DistributedRoom.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS)) {
-//                    throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
-//                            "Timeout reached when creating subscriber endpoint");
-//                }
-//            } catch (InterruptedException e) {
-//                throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
-//                        "Interrupted when creating subscriber endpoint: " + e.getMessage());
-//            }
+            //
+            //            try {
+            //                if (!subscriberLatch.await(DistributedRoom.ASYNC_LATCH_TIMEOUT, TimeUnit.SECONDS)) {
+            //                    throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
+            //                            "Timeout reached when creating subscriber endpoint");
+            //                }
+            //            } catch (InterruptedException e) {
+            //                throw new RoomException(RoomException.Code.MEDIA_ENDPOINT_ERROR_CODE,
+            //                        "Interrupted when creating subscriber endpoint: " + e.getMessage());
+            //            }
             if (oldMediaEndpoint != null) {
                 log.warn("PARTICIPANT {}: Two threads are trying to create at "
                         + "the same time a subscriber endpoint for user {}", this.name, senderName);
@@ -294,49 +294,17 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         return null;
     }
 
-    /**
-     * Given a composite name (eg. acuccu_microphone) returns the stream id (eg. microphone)
-     * This is needed because the subscribers map stores composite names as the keys.
-     *
-     * @param compositeName
-     * @return the stream id
-     */
-    private static String stripSenderName(final String compositeName) {
-        final int index = compositeName.lastIndexOf("_");
-        if (index == -1) {
-            return compositeName;
-        }
-
-        return compositeName.substring(index + 1);
-    }
-
-    /**
-     * Given a composite name (eg. acuccu_microphone) returns the name (eg. acuccu)
-     * This is needed because the subscribers map stores composite names as the keys.
-     *
-     * @param compositeName
-     * @return the name
-     */
-    private static String stripStreamId(final String compositeName) {
-        final int index = compositeName.lastIndexOf("_");
-        if (index == -1) {
-            return compositeName;
-        }
-
-        return compositeName.substring(0, index);
-    }
-
     @Override
     public void cancelReceivingAllMedias(String senderName) {
         for (String compositeName : subscribers.keySet()) {
-            cancelReceivingMedia(senderName, stripSenderName(compositeName));
+            cancelReceivingMedia(senderName, DistributedMediaEndpoint.stripSenderName(compositeName));
         }
     }
 
     @Override
     public void cancelReceivingMedia(String senderName, String streamId) {
         log.debug("PARTICIPANT {}: cancel receiving media from {}", this.name, senderName);
-        DistributedSubscriberEndpoint subscriberEndpoint = subscribers.remove(senderName + "_" + streamId);
+        DistributedSubscriberEndpoint subscriberEndpoint = subscribers.remove(DistributedMediaEndpoint.toEndpointName(getRoom().getTenant(), senderName, streamId));
         if (subscriberEndpoint == null || subscriberEndpoint.getEndpoint() == null) {
             log.warn("PARTICIPANT {}: Trying to cancel receiving video from user {}. "
                     + "But there is no such subscriber endpoint.", this.name, senderName);
@@ -372,7 +340,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         if (muteType == null) {
             throw new RoomException(RoomException.Code.MEDIA_MUTE_ERROR_CODE, "Mute type cannot be null");
         }
-        String senderName = sender.getName() + "_" + streamId;
+        String senderName = DistributedMediaEndpoint.toEndpointName(sender.getRoom().getTenant(), sender.getName(), streamId);
         DistributedSubscriberEndpoint subscriberEndpoint = subscribers.get(senderName);
         if (subscriberEndpoint == null || subscriberEndpoint.getEndpoint() == null) {
             log.warn("PARTICIPANT {}: Trying to mute incoming media from user {}. "
@@ -386,7 +354,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
 
     @Override
     public void unmuteSubscribedMedia(IParticipant sender, String streamId) {
-        String senderName = sender.getName() + "_" + streamId;
+        String senderName = DistributedMediaEndpoint.toEndpointName(sender.getRoom().getTenant(), sender.getName(), streamId);
         DistributedSubscriberEndpoint subscriberEndpoint = subscribers.get(senderName);
         if (subscriberEndpoint == null || subscriberEndpoint.getEndpoint() == null) {
             log.warn("PARTICIPANT {}: Trying to unmute incoming media from user {}. "
@@ -413,7 +381,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         this.closed = true;
 //        try {
         for (String compositeName : subscribers.keySet()) {
-            final String remoteParticipantName = stripStreamId(compositeName);
+            final String remoteParticipantName = DistributedMediaEndpoint.stripStreamId(compositeName);
             DistributedSubscriberEndpoint subscriber = subscribers.get(compositeName);
             if (subscriber != null && subscriber.getEndpoint() != null) {
                 releaseSubscriberEndpoint(remoteParticipantName, subscriber);
@@ -460,8 +428,6 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
 
     @Override
     public IPublisherEndpoint getNewOrExistingPublisher(String originalEndpointName, String streamId) {
-//        DistributedPublisherEndpoint publisherEndpoint = new DistributedPublisherEndpoint(web, dataChannels, this, endpointName + "_" + streamId, room.getPipeline(), room.getKmsUri());
-
         String endpointName = room.getTenant() + SEPARATOR + originalEndpointName + SEPARATOR + streamId;
 
         DistributedPublisherEndpoint publisherEndpoint = (DistributedPublisherEndpoint) context
@@ -541,7 +507,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         if (subscriber != null) {
             subscriber.unregisterErrorListeners();
             releaseElement(senderName, subscriber.getEndpoint());
-            senderName = senderName + "_" + ((DistributedSubscriberEndpoint) subscriber).getStreamId();
+            senderName = DistributedMediaEndpoint.toEndpointName(getRoom().getTenant(), senderName, ((DistributedSubscriberEndpoint) subscriber).getStreamId());
 
             // Warning: We must call destroyHazelcastResources AFTER we
             // remove the element from the map, otherwise the destroyed resources
