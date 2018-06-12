@@ -34,20 +34,18 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
     private RecorderEndpoint recorderEndpoint = null;
     private Long callStreamId = null;
 
-    public DistributedPublisherEndpoint(boolean web, boolean dataChannels, DistributedParticipant owner,
+    public DistributedPublisherEndpoint(boolean dataChannels, DistributedParticipant owner,
                                         String endpointName, MediaPipeline pipeline, String kmsUrl, String streamId) {
-        super(web, dataChannels, owner, endpointName, pipeline, log, kmsUrl, streamId);
+        super(dataChannels, owner, endpointName, pipeline, log, kmsUrl, streamId);
     }
 
 
-    public DistributedPublisherEndpoint(boolean web,
-                                        boolean dataChannels,
+    public DistributedPublisherEndpoint(boolean dataChannels,
                                         String endpointName,
                                         String kmsUrl,
                                         String streamId,
                                         KurentoClient kurentoClient,
                                         DistributedRemoteObject webEndpointInfo,
-                                        DistributedRemoteObject rtpEndpointInfo,
                                         DistributedRemoteObject recEndpointInfo,
                                         DistributedRemoteObject passThrouInfo,
                                         DistributedRemoteObject hubportInfo,
@@ -57,7 +55,7 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
                                         boolean connected,
                                         Long callStreamId,
                                         IRoomManager roomManager) {
-        super(web, dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo, rtpEndpointInfo, roomId, participantId, muteType, roomManager, log);
+        super(dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo, roomId, participantId, muteType, roomManager, log);
         this.connected = connected;
         this.callStreamId = callStreamId;
         this.recorderEndpoint = DistributedRemoteObject.retrieveFromInfo(recEndpointInfo, kurentoClient);
@@ -101,7 +99,7 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
             this.callStreamId = callStreamId;
 
             recorderEndpoint = new RecorderEndpoint.Builder(getPipeline(), fileName).withMediaProfile(mediaSpecType).build();
-            internalSinkConnect(getWebEndpoint(), recorderEndpoint);
+            internalSinkConnect(getEndpoint(), recorderEndpoint);
 
             // Start the recording
             recorderEndpoint.record(continuation);
@@ -117,7 +115,7 @@ public class DistributedPublisherEndpoint extends DistributedMediaEndpoint imple
             recorderEndpoint.stop(continuation);
 
             // Remove the node from the pipeline
-            internalSinkDisconnect(getWebEndpoint(), recorderEndpoint);
+            internalSinkDisconnect(getEndpoint(), recorderEndpoint);
 
             recorderEndpoint = null;
             callStreamId = null;

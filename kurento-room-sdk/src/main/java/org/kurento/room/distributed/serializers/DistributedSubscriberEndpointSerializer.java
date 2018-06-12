@@ -38,13 +38,10 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
     public void write(ObjectDataOutput out, DistributedSubscriberEndpoint endpoint)
             throws IOException {
         //DistributedMediaEndpoint serialization
-        DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getWebEndpoint(), DistributedRemoteObject.WEBRTCENDPOINT_CLASSNAME, endpoint.getKmsUrl());
-        DistributedRemoteObject rtpEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getRtpEndpoint(), DistributedRemoteObject.RTPENDPOINT_CLASSNAME, endpoint.getKmsUrl());
+        DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getEndpoint(), DistributedRemoteObject.WEBRTCENDPOINT_CLASSNAME, endpoint.getKmsUrl());
 
-        out.writeBoolean(endpoint.isWeb());
         out.writeBoolean(endpoint.isDataChannels());
         out.writeObject(webEndpointRemoteObj);
-        out.writeObject(rtpEndpointRemoteObj);
         out.writeObject(endpoint.getOwner().getRoom().getId());
         out.writeUTF(endpoint.getOwner().getId());
         out.writeUTF(endpoint.getEndpointName());
@@ -64,10 +61,8 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
     public DistributedSubscriberEndpoint read(ObjectDataInput in)
             throws IOException {
         //DistributedMediaEndpoint deserialization
-        boolean web = in.readBoolean();
         boolean dataChannels = in.readBoolean();
         DistributedRemoteObject webEndpointRemoteObj = in.readObject();
-        DistributedRemoteObject rtpEndpointRemoteObj = in.readObject();
         KurentoRoomId roomId = in.readObject();
         String participantId = in.readUTF();
         String endpointName = in.readUTF();
@@ -83,7 +78,7 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
 
         IRoomManager roomManager = (IRoomManager) context.getBean("roomManager");
 
-        return (DistributedSubscriberEndpoint) context.getBean("distributedSubscriberEndpoint", web, dataChannels, endpointName, kmsUrl, streamId, client, webEndpointRemoteObj, rtpEndpointRemoteObj,
+        return (DistributedSubscriberEndpoint) context.getBean("distributedSubscriberEndpoint", dataChannels, endpointName, kmsUrl, streamId, client, webEndpointRemoteObj,
                 roomId, participantId, muteType, connectedToPublisher, roomManager);
     }
 

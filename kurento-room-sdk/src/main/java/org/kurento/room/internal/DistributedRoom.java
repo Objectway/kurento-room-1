@@ -162,7 +162,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
     }
 
     @Override
-     public String getName() {
+    public String getName() {
         return roomId.getRoomName();
     }
 
@@ -183,7 +183,7 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
     }
 
     @Override
-    public void join(String participantId, String userName, boolean dataChannels, boolean webParticipant) throws RoomException {
+    public void join(String participantId, String userName, boolean dataChannels) throws RoomException {
         log.info("KMS: Using kmsUri {} for {}", kmsUri, roomId.getRoomName());
         roomLock.lock();
 
@@ -205,10 +205,9 @@ public class DistributedRoom implements IRoom, IChangeListener<DistributedPartic
                 createPipeline();
             }
             // Note: The IAtomicLong contained in DistributedParticipant starts at 0 pre default
-            participants.set(participantId, (DistributedParticipant) context.getBean("distributedParticipant", participantId, userName, this,
-                    dataChannels, webParticipant));
+            participants.set(participantId, (DistributedParticipant) context.getBean("distributedParticipant", participantId, userName, this, dataChannels));
 //            participants.put(participantId, new DistributedParticipant(participantId, userName, this,
-//                    dataChannels, webParticipant));
+//                    dataChannels));
 
             log.info("ROOM {}: Added participant {}", roomId.getRoomName(), userName);
         } finally {

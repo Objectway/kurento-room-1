@@ -70,9 +70,9 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
     }
 
     @Override
-    public Set<UserParticipant> joinRoom(KurentoUserId userId, String roomName, boolean dataChannels, boolean webParticipant, KurentoClientSessionInfo kcSessionInfo, String participantId) throws RoomException {
-        log.debug("Request [JOIN_ROOM] userId={}, room={}, web={} " + "kcSessionInfo.room={} ({})",
-                userId, roomName, webParticipant,
+    public Set<UserParticipant> joinRoom(KurentoUserId userId, String roomName, boolean dataChannels, KurentoClientSessionInfo kcSessionInfo, String participantId) throws RoomException {
+        log.debug("Request [JOIN_ROOM] userId={}, room={}, " + "kcSessionInfo.room={} ({})",
+                userId, roomName,
                 kcSessionInfo != null ? kcSessionInfo.getRoomName() : null, participantId);
         KurentoRoomId roomId = new KurentoRoomId(userId.getTenant(), roomName);
         IRoom room = rooms.get(roomId);
@@ -94,7 +94,7 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         }
 
         Set<UserParticipant> existingParticipants = this.getParticipants(roomId);
-        room.join(participantId, userId.getUsername(), dataChannels, webParticipant);
+        room.join(participantId, userId.getUsername(), dataChannels);
         return existingParticipants;
     }
 
@@ -567,25 +567,14 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         return new UserParticipant(participantId, participant.getName(), participant.getRoom().getTenant());
     }
 
-    @Override
-    public IRoom getRoomByName(String name) {
-        return rooms.get(name);
-    }
-
-    @Override public IRoom getRoomById(KurentoRoomId roomId) {
-        return rooms.get(roomId);
-    }
 
     @Override
     public void onChange(DistributedRoom room) {
         rooms.set(room.getId(), room);
     }
 
-
     // ------------------ HELPERS ------------------------------------------
-
-
-    private DistributedParticipant getParticipant(String pid) throws RoomException {
+    public DistributedParticipant getParticipant(String pid) throws RoomException {
         for (DistributedRoom r : rooms.values()) {
             if (!r.isClosed()) {
                 if (r.getParticipantIds().contains(pid) && r.getParticipant(pid) != null) {
@@ -593,7 +582,11 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
                 }
             }
         }
-        throw new RoomException(RoomException.Code.USER_NOT_FOUND_ERROR_CODE,
-                "No participant with id '" + pid + "' was found");
+        throw new RoomException(RoomException.Code.USER_NOT_FOUND_ERROR_CODE, "No participant with id '" + pid + "' was found");
+    }
+
+    @Override
+    public IRoom getRoomById(KurentoRoomId roomId) {
+        return rooms.get(roomId);
     }
 }

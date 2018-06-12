@@ -35,7 +35,6 @@ public class DistributedParticipantSerializer implements StreamSerializer<Distri
         out.writeUTF(distributedParticipant.getName());
         out.writeObject(distributedParticipant.getRoom().getId());
         out.writeBoolean(distributedParticipant.isDataChannels());
-        out.writeBoolean(distributedParticipant.isWeb());
     }
 
     @Override
@@ -47,8 +46,7 @@ public class DistributedParticipantSerializer implements StreamSerializer<Distri
         KurentoRoomId roomId = in.readObject();
         DistributedRoom room = (DistributedRoom) roomManager.getRoomById(roomId);
         boolean dataChannels = in.readBoolean();
-        boolean web = in.readBoolean();
-        DistributedParticipant distributedParticipant = (DistributedParticipant) context.getBean("distributedParticipant", id, name, room, dataChannels, web);
+        DistributedParticipant distributedParticipant = (DistributedParticipant) context.getBean("distributedParticipant", id, name, room, dataChannels);
 
         return distributedParticipant;
     }

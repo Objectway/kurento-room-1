@@ -21,8 +21,6 @@ import java.util.Set;
  * requested actions.
  */
 public interface IRoomManager {
-    // void init(RoomHandler roomHandler, KurentoClientProvider kcProvider);
-
     /**
      * Represents a client's request to join a room. The room must exist in order to perform the
      * join.<br/>
@@ -34,12 +32,6 @@ public interface IRoomManager {
      *                       peer (from the client-side).
      * @param roomName       name or identifier of the room
      * @param dataChannels   enables data channels (if webParticipant)
-     * @param webParticipant if <strong>true</strong>, the internal media endpoints will use the
-     *                       trickle ICE
-     *                       mechanism when establishing connections with external media peers (
-     *                       {@link WebRtcEndpoint}); if <strong>false</strong>, the media endpoint
-     *                       will be a
-     *                       {@link RtpEndpoint}, with no ICE implementation
      * @param kcSessionInfo  sessionInfo bean to be used to create the room in case it doesn't
      *                       exist (if null, the
      *                       room will not be created)
@@ -47,7 +39,7 @@ public interface IRoomManager {
      * @return set of existing peers of type {@link UserParticipant}, can be empty if first
      * @throws RoomException on error while joining (like the room is not found or is closing)
      */
-    Set<UserParticipant> joinRoom(KurentoUserId userId, String roomName, boolean dataChannels, boolean webParticipant, KurentoClientSessionInfo kcSessionInfo, String participantId) throws RoomException;
+    Set<UserParticipant> joinRoom(KurentoUserId userId, String roomName, boolean dataChannels, KurentoClientSessionInfo kcSessionInfo, String participantId) throws RoomException;
 
     /**
      * Represents a client's notification that she's leaving the room. Will also close the room if
@@ -346,8 +338,6 @@ public interface IRoomManager {
     UserParticipant getParticipantInfo(String participantId) throws RoomException;
 
     // ------------------ HELPERS ------------------------------------------
-
-    IRoom getRoomByName(String name);
-
+    IParticipant getParticipant(final String participantId) throws RoomException;
     IRoom getRoomById(KurentoRoomId roomId);
 }

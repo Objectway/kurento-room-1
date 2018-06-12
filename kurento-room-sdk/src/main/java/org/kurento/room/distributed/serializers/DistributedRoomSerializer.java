@@ -34,8 +34,7 @@ public class DistributedRoomSerializer implements StreamSerializer<DistributedRo
     }
 
     @Override
-    public void write(ObjectDataOutput out, DistributedRoom distributedRoom)
-            throws IOException {
+    public void write(ObjectDataOutput out, DistributedRoom distributedRoom) throws IOException {
         out.writeObject(distributedRoom.getId());
         out.writeUTF(distributedRoom.getKmsUri());
         out.writeBoolean(distributedRoom.getDestroyKurentoClient());
@@ -47,16 +46,15 @@ public class DistributedRoomSerializer implements StreamSerializer<DistributedRo
     }
 
     @Override
-    public DistributedRoom read(ObjectDataInput in)
-            throws IOException {
+    public DistributedRoom read(ObjectDataInput in) throws IOException {
         KurentoRoomId roomId = in.readObject();
         String kmsUri = in.readUTF();
         boolean destroyKurentoClient = in.readBoolean();
         boolean closed = in.readBoolean();
-        DistributedRemoteObject pipelineInfo = (DistributedRemoteObject) in.readObject();
-        DistributedRemoteObject compositeInfo = (DistributedRemoteObject) in.readObject();
-        DistributedRemoteObject hubPortInfo = (DistributedRemoteObject) in.readObject();
-        DistributedRemoteObject recorderInfo = (DistributedRemoteObject) in.readObject();
+        DistributedRemoteObject pipelineInfo = in.readObject();
+        DistributedRemoteObject compositeInfo = in.readObject();
+        DistributedRemoteObject hubPortInfo = in.readObject();
+        DistributedRemoteObject recorderInfo = in.readObject();
 
         KurentoClient client = kmsManager.getKurentoClient(kmsUri);
         DistributedRoom distributedRoom = (DistributedRoom) context.getBean("distributedRoom", roomId, client, destroyKurentoClient, closed, pipelineInfo, compositeInfo, hubPortInfo, recorderInfo);

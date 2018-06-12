@@ -41,7 +41,7 @@ public interface IRoom {
 
     String getName();
     MediaPipeline getPipeline();
-    void join(String participantId, String userName, boolean dataChannels, boolean webParticipant) throws RoomException;
+    void join(String participantId, String userName, boolean dataChannels) throws RoomException;
     void newPublisher(IParticipant participant, String streamId);
     void cancelPublisher(IParticipant participant, String streamId);
     void leave(String participantId) throws RoomException;

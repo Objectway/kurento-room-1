@@ -37,20 +37,18 @@ public class DistributedConfig {
 
     @Bean
     @Scope("prototype")
-    public DistributedParticipant distributedParticipant(String id, String name, DistributedRoom room, boolean dataChannels, boolean web) {
-        return new DistributedParticipant(id, name, room, dataChannels, web);
+    public DistributedParticipant distributedParticipant(String id, String name, DistributedRoom room, boolean dataChannels) {
+        return new DistributedParticipant(id, name, room, dataChannels);
     }
 
     @Bean
     @Scope("prototype")
-    public DistributedPublisherEndpoint distributedPublisherEndpoint(boolean web,
-                                                                     boolean dataChannels,
+    public DistributedPublisherEndpoint distributedPublisherEndpoint(boolean dataChannels,
                                                                      String endpointName,
                                                                      String kmsUrl,
                                                                      String streamId,
                                                                      KurentoClient kurentoClient,
                                                                      DistributedRemoteObject webEndpointInfo,
-                                                                     DistributedRemoteObject rtpEndpointInfo,
                                                                      DistributedRemoteObject recEndpointInfo,
                                                                      DistributedRemoteObject passThrouInfo,
                                                                      DistributedRemoteObject hubportInfo,
@@ -60,41 +58,39 @@ public class DistributedConfig {
                                                                      boolean connected,
                                                                      Long callStreamId,
                                                                      IRoomManager roomManager) {
-        return new DistributedPublisherEndpoint(web, dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo,
-                rtpEndpointInfo, recEndpointInfo, passThrouInfo, hubportInfo, roomId, participantId, muteType, connected, callStreamId, roomManager);
+        return new DistributedPublisherEndpoint(dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo,
+                recEndpointInfo, passThrouInfo, hubportInfo, roomId, participantId, muteType, connected, callStreamId, roomManager);
     }
 
     @Bean
     @Scope("prototype")
-    public DistributedPublisherEndpoint distributedPublisherEndpoint(boolean web, boolean dataChannels, DistributedParticipant owner,
+    public DistributedPublisherEndpoint distributedPublisherEndpoint(boolean dataChannels, DistributedParticipant owner,
                                                                      String endpointName, MediaPipeline pipeline, String kmsUrl, String streamId) {
-        return new DistributedPublisherEndpoint(web, dataChannels, owner, endpointName, pipeline, kmsUrl, streamId);
+        return new DistributedPublisherEndpoint(dataChannels, owner, endpointName, pipeline, kmsUrl, streamId);
     }
 
 
     @Bean
     @Scope("prototype")
-    public DistributedSubscriberEndpoint distributedSubscriberEndpoint(boolean web,
-                                                                       boolean dataChannels,
+    public DistributedSubscriberEndpoint distributedSubscriberEndpoint(boolean dataChannels,
                                                                        String endpointName,
                                                                        String kmsUrl,
                                                                        String streamId,
                                                                        KurentoClient kurentoClient,
                                                                        DistributedRemoteObject webEndpointInfo,
-                                                                       DistributedRemoteObject rtpEndpointInfo,
                                                                        KurentoRoomId roomId,
                                                                        String participantId,
                                                                        MutedMediaType muteType,
                                                                        boolean connectedToPublisher,
                                                                        IRoomManager roomManager) {
-        return new DistributedSubscriberEndpoint(web, dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo,
-                rtpEndpointInfo, roomId, participantId, muteType, connectedToPublisher, roomManager);
+        return new DistributedSubscriberEndpoint(dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo,
+                roomId, participantId, muteType, connectedToPublisher, roomManager);
     }
 
     @Bean
     @Scope("prototype")
-    public DistributedSubscriberEndpoint distributedSubscriberEndpoint(boolean web, DistributedParticipant owner, String endpointName,
+    public DistributedSubscriberEndpoint distributedSubscriberEndpoint(DistributedParticipant owner, String endpointName,
                                                                        MediaPipeline pipeline, String kmsUrl, String streamId) {
-        return new DistributedSubscriberEndpoint(web, owner, endpointName, pipeline, kmsUrl, streamId);
+        return new DistributedSubscriberEndpoint(owner, endpointName, pipeline, kmsUrl, streamId);
     }
 }

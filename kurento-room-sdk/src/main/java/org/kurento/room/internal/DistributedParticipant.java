@@ -48,7 +48,6 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
 
     private String id;
     private String name;
-    private boolean web = false;
     private boolean dataChannels = false;
     private final DistributedRoom room;
     private volatile boolean closed;
@@ -81,10 +80,9 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         publishersStreamingFlags.destroy();
     }
 
-    public DistributedParticipant(String id, String name, DistributedRoom room, boolean dataChannels, boolean web) {
+    public DistributedParticipant(String id, String name, DistributedRoom room, boolean dataChannels) {
         this.id = id;
         this.name = name;
-        this.web = web;
         this.dataChannels = dataChannels;
         this.room = room;
         setListener(room);
@@ -409,7 +407,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
 
         String endpointName = room.getTenant() + SEPARATOR + remoteName + SEPARATOR + streamId;
 
-        DistributedSubscriberEndpoint sendingEndpoint = (DistributedSubscriberEndpoint) context.getBean("distributedSubscriberEndpoint", web, this, endpointName, this.room.getPipeline(), this.room.getKmsUri(), streamId);
+        DistributedSubscriberEndpoint sendingEndpoint = (DistributedSubscriberEndpoint) context.getBean("distributedSubscriberEndpoint", this, endpointName, this.room.getPipeline(), this.room.getKmsUri(), streamId);
         DistributedSubscriberEndpoint existingSendingEndpoint =
                 this.subscribers.putIfAbsent(endpointName, sendingEndpoint);
 
@@ -431,7 +429,7 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         String endpointName = room.getTenant() + SEPARATOR + originalEndpointName + SEPARATOR + streamId;
 
         DistributedPublisherEndpoint publisherEndpoint = (DistributedPublisherEndpoint) context
-                .getBean("distributedPublisherEndpoint", web, dataChannels, this, endpointName, room.getPipeline(), room.getKmsUri(), streamId);
+                .getBean("distributedPublisherEndpoint", dataChannels, this, endpointName, room.getPipeline(), room.getKmsUri(), streamId);
 
         DistributedPublisherEndpoint existingPublisherEndpoint = publishers.putIfAbsent(streamId, publisherEndpoint);
 
@@ -590,14 +588,6 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
         return true;
     }
 
-    public boolean isWeb() {
-        return web;
-    }
-
-    public void setWeb(boolean web) {
-        this.web = web;
-    }
-
     public boolean isDataChannels() {
         return dataChannels;
     }
@@ -609,7 +599,6 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
     public void setListener(IChangeListener<DistributedParticipant> listener) {
         this.listener = listener;
     }
-
 
     public IAtomicLong getRegisterCount() {
         return registerCount;

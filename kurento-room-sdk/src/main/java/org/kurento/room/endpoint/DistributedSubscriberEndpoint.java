@@ -34,25 +34,23 @@ public class DistributedSubscriberEndpoint extends DistributedMediaEndpoint impl
 
     private DistributedPublisherEndpoint publisher = null;
 
-    public DistributedSubscriberEndpoint(boolean web, DistributedParticipant owner, String endpointName,
+    public DistributedSubscriberEndpoint(DistributedParticipant owner, String endpointName,
                                          MediaPipeline pipeline, String kmsUrl, String streamId) {
-        super(web, false, owner, endpointName, pipeline, log, kmsUrl, streamId);
+        super(false, owner, endpointName, pipeline, log, kmsUrl, streamId);
     }
 
-    public DistributedSubscriberEndpoint(boolean web,
-                                         boolean dataChannels,
+    public DistributedSubscriberEndpoint(boolean dataChannels,
                                          String endpointName,
                                          String kmsUrl,
                                          String streamId,
                                          KurentoClient kurentoClient,
                                          DistributedRemoteObject webEndpointInfo,
-                                         DistributedRemoteObject rtpEndpointInfo,
                                          KurentoRoomId roomId,
                                          String participantId,
                                          MutedMediaType muteType,
                                          boolean connectedToPublisher,
                                          IRoomManager roomManager) {
-        super(web, dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo, rtpEndpointInfo, roomId, participantId, muteType, roomManager, log);
+        super(dataChannels, endpointName, kmsUrl, streamId, kurentoClient, webEndpointInfo, roomId, participantId, muteType, roomManager, log);
         this.connectedToPublisher = connectedToPublisher;
         this.publisher = (DistributedPublisherEndpoint) roomManager.getRoomById(roomId).getParticipant(participantId).getPublisher(streamId);
     }

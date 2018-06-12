@@ -44,12 +44,9 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
     @Autowired
     private ITurnProvider turnProvider;
 
-    private boolean web = false;
-
     private boolean dataChannels = false;
 
     private WebRtcEndpoint webEndpoint = null;
-    private RtpEndpoint endpoint = null;
 
     private DistributedParticipant owner;
     private String endpointName;
@@ -86,21 +83,19 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
     /**
      * Constructor to set the owner, the endpoint's name and the media pipeline.
      *
-     * @param web
      * @param dataChannels
      * @param owner
      * @param endpointName
      * @param pipeline
      * @param log
      */
-    public DistributedMediaEndpoint(boolean web, boolean dataChannels, DistributedParticipant owner, String endpointName,
+    public DistributedMediaEndpoint(boolean dataChannels, DistributedParticipant owner, String endpointName,
                                     MediaPipeline pipeline, Logger log, String kmsUrl, String streamId) {
         if (log == null) {
             DistributedMediaEndpoint.log = LoggerFactory.getLogger(DistributedMediaEndpoint.class);
         } else {
             DistributedMediaEndpoint.log = log;
         }
-        this.web = web;
         this.dataChannels = dataChannels;
         this.owner = owner;
         this.setListener(owner);
@@ -110,14 +105,12 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
         this.streamId = streamId;
     }
 
-    public DistributedMediaEndpoint(boolean web,
-                                    boolean dataChannels,
+    public DistributedMediaEndpoint(boolean dataChannels,
                                     String endpointName,
                                     String kmsUrl,
                                     String streamId,
                                     KurentoClient kurentoClient,
                                     DistributedRemoteObject webEndpointInfo,
-                                    DistributedRemoteObject rtpEndpointInfo,
                                     KurentoRoomId roomId,
                                     String participantId,
                                     MutedMediaType muteType,
@@ -128,7 +121,6 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
         } else {
             DistributedMediaEndpoint.log = log;
         }
-        this.web = web;
         this.dataChannels = dataChannels;
         this.endpointName = endpointName;
         this.kmsUrl = kmsUrl;
@@ -139,11 +131,6 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
         this.setListener(owner);
         this.pipeline = room.getPipeline();
         this.webEndpoint = DistributedRemoteObject.retrieveFromInfo(webEndpointInfo, kurentoClient);
-        this.endpoint = DistributedRemoteObject.retrieveFromInfo(rtpEndpointInfo, kurentoClient);
-    }
-
-    public boolean isWeb() {
-        return web;
     }
 
     /**
@@ -156,23 +143,11 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
     /**
      * @return the internal endpoint ({@link RtpEndpoint} or {@link WebRtcEndpoint})
      */
-    public SdpEndpoint getEndpoint() {
-        if (this.isWeb()) {
-            return this.webEndpoint;
-        } else {
-            return this.endpoint;
-        }
+    public WebRtcEndpoint getEndpoint() {
+        return this.webEndpoint;
     }
 
-    public WebRtcEndpoint getWebEndpoint() {
-        return webEndpoint;
-    }
-
-    public RtpEndpoint getRtpEndpoint() {
-        return endpoint;
-    }
-
-    /**
+   /**
      * If this object doesn't have a {@link WebRtcEndpoint}, it is created in a thread-safe way using
      * the internal {@link MediaPipeline}. Otherwise no actions are taken. It also registers an error
      * listener for the endpoint and for any additional media elements.
@@ -181,23 +156,21 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
      *                      {@link WebRtcEndpoint} returns
      * @return the existing endpoint, if any
      */
-    public SdpEndpoint createEndpoint() {
+    public WebRtcEndpoint createEndpoint() {
         Lock lock = getLock();
         lock.lock();
         try {
-            SdpEndpoint old = this.getEndpoint();
+            WebRtcEndpoint old = this.getEndpoint();
             if (old == null) {
                 internalEndpointInitialization();
             }
 //            else {
 //                endpointLatch.countDown();
 //            }
-            if (this.isWeb()) {
-                for (DistributedIceCandidate candidate : candidates) {
-                    internalAddIceCandidate(candidate);
-                }
-                candidates.clear();
+            for (DistributedIceCandidate candidate : candidates) {
+                internalAddIceCandidate(candidate);
             }
+            candidates.clear();
             return old;
 
         } finally {
@@ -205,7 +178,8 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
             listener.onChange(this);
         }
     }
-    public SdpEndpoint createEndpoint(ICountDownLatchWrapper countDownLatchWrapper) {
+
+    public WebRtcEndpoint createEndpoint(ICountDownLatchWrapper countDownLatchWrapper) {
        throw new NotImplementedException();
     }
 
@@ -252,7 +226,7 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
         Lock lock = getLock();
         lock.lock();
         try {
-            unregisterElementErrListener(endpoint, endpointSubscription);
+            unregisterElementErrListener(webEndpoint, endpointSubscription);
         } finally {
             lock.unlock();
         }
@@ -304,13 +278,10 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
 
     /**
      * Creates the endpoint (RTP or WebRTC) and any other additional elements (if needed).
-     *
-     * @param endpointLatch
      */
     protected void internalEndpointInitialization() {
-        if (this.isWeb()) {
-            final TurnKMSCredentials credentials = turnProvider.generateKMSCredentials();
-            WebRtcEndpoint.Builder builder = new WebRtcEndpoint.Builder(pipeline);
+        final TurnKMSCredentials credentials = turnProvider.generateKMSCredentials();
+        WebRtcEndpoint.Builder builder = new WebRtcEndpoint.Builder(pipeline);
 //                .with("stunServerAddress", credentials.getStunUrl())
 //                .with("stunServerPort", credentials.getStunPort())
 //                .with("turnUrl", credentials.getTurnUrl())
@@ -318,19 +289,19 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
 //                .with("minVideoRecvBandwidth", 300)
 //                .with("maxVideoSendBandwidth", 600)
 //                .with("minVideoSendBandwidth", 300);
-            if (this.dataChannels) {
-                builder.useDataChannels();
-            }
-            webEndpoint = builder.build();
-            webEndpoint.setStunServerAddress(credentials.getStunUrl());
-            webEndpoint.setStunServerPort(credentials.getStunPort());
-            webEndpoint.setTurnUrl(credentials.getTurnUrl());
-            webEndpoint.setMaxVideoRecvBandwidth(0); // 0 is considered unconstrained
-            webEndpoint.setMinVideoRecvBandwidth(0); // 0 is considered unconstrained
-            webEndpoint.setMaxVideoSendBandwidth(0); // 0 is considered unconstrained
-            webEndpoint.setMinVideoSendBandwidth(0); // 0 is considered unconstrained
-            log.trace("EP {}: Created a new WebRtcEndpoint", endpointName);
-            endpointSubscription = registerElemErrListener(webEndpoint);
+        if (this.dataChannels) {
+            builder.useDataChannels();
+        }
+        webEndpoint = builder.build();
+        webEndpoint.setStunServerAddress(credentials.getStunUrl());
+        webEndpoint.setStunServerPort(credentials.getStunPort());
+        webEndpoint.setTurnUrl(credentials.getTurnUrl());
+        webEndpoint.setMaxVideoRecvBandwidth(0); // 0 is considered unconstrained
+        webEndpoint.setMinVideoRecvBandwidth(0); // 0 is considered unconstrained
+        webEndpoint.setMaxVideoSendBandwidth(0); // 0 is considered unconstrained
+        webEndpoint.setMinVideoSendBandwidth(0); // 0 is considered unconstrained
+        log.trace("EP {}: Created a new WebRtcEndpoint", endpointName);
+        endpointSubscription = registerElemErrListener(webEndpoint);
 
 //            builder.buildAsync(new Continuation<WebRtcEndpoint>() {
 //                @Override
@@ -353,26 +324,6 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
 //                    log.error("EP {}: Failed to create a new WebRtcEndpoint", endpointName, cause);
 //                }
 //            });
-        } else {
-            endpoint =  new RtpEndpoint.Builder(pipeline).build();
-            log.trace("EP {}: Created a new RtpEndpoint", endpointName);
-            endpointSubscription = registerElemErrListener(endpoint);
-//            new RtpEndpoint.Builder(pipeline).buildAsync(new Continuation<RtpEndpoint>() {
-//                @Override
-//                public void onSuccess(RtpEndpoint result) throws Exception {
-//                    endpoint = result;
-//                    endpointLatch.countDown();
-//                    log.trace("EP {}: Created a new RtpEndpoint", endpointName);
-//                    endpointSubscription = registerElemErrListener(endpoint);
-//                }
-//
-//                @Override
-//                public void onError(Throwable cause) throws Exception {
-//                    endpointLatch.countDown();
-//                    log.error("EP {}: Failed to create a new RtpEndpoint", endpointName, cause);
-//                }
-//            });
-        }
     }
 
     /**
@@ -385,17 +336,14 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
         Lock lock = getLock();
         lock.lock();
         try {
-            if (!this.isWeb()) {
-                throw new RoomException(RoomException.Code.MEDIA_NOT_A_WEB_ENDPOINT_ERROR_CODE, "Operation not supported");
-            }
             if (webEndpoint == null) {
                 candidates.add((DistributedIceCandidate)candidate);
             } else {
                 internalAddIceCandidate((DistributedIceCandidate)candidate);
             }
-        }catch (Exception e){
+        } catch (Exception e){
             log.error(e.toString());
-        } finally{
+        } finally {
             lock.unlock();
         }
 
@@ -423,8 +371,7 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
      * @param element      the {@link MediaElement}
      * @param subscription the associated {@link ListenerSubscription}
      */
-    protected void unregisterElementErrListener(MediaElement element,
-                                                final ListenerSubscription subscription) {
+    protected void unregisterElementErrListener(MediaElement element, final ListenerSubscription subscription) {
         if (element == null || subscription == null) {
             return;
         }
@@ -440,19 +387,11 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
      * @see SdpEndpoint#processOffer(String)
      */
     protected String processOffer(String offer) throws RoomException {
-        if (this.isWeb()) {
-            if (webEndpoint == null) {
-                throw new RoomException(RoomException.Code.MEDIA_WEBRTC_ENDPOINT_ERROR_CODE,
-                        "Can't process offer when WebRtcEndpoint is null (ep: " + endpointName + ")");
-            }
-            return webEndpoint.processOffer(offer);
-        } else {
-            if (endpoint == null) {
-                throw new RoomException(RoomException.Code.MEDIA_RTP_ENDPOINT_ERROR_CODE,
-                        "Can't process offer when RtpEndpoint is null (ep: " + endpointName + ")");
-            }
-            return endpoint.processOffer(offer);
+        if (webEndpoint == null) {
+            throw new RoomException(RoomException.Code.MEDIA_WEBRTC_ENDPOINT_ERROR_CODE,
+                    "Can't process offer when WebRtcEndpoint is null (ep: " + endpointName + ")");
         }
+        return webEndpoint.processOffer(offer);
     }
 
     /**
@@ -463,19 +402,12 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
      * @see SdpEndpoint#generateOffer()
      */
     protected String generateOffer() throws RoomException {
-        if (this.isWeb()) {
-            if (webEndpoint == null) {
-                throw new RoomException(RoomException.Code.MEDIA_WEBRTC_ENDPOINT_ERROR_CODE,
-                        "Can't generate offer when WebRtcEndpoint is null (ep: " + endpointName + ")");
-            }
-            return webEndpoint.generateOffer();
-        } else {
-            if (endpoint == null) {
-                throw new RoomException(RoomException.Code.MEDIA_RTP_ENDPOINT_ERROR_CODE,
-                        "Can't generate offer when RtpEndpoint is null (ep: " + endpointName + ")");
-            }
-            return endpoint.generateOffer();
+        if (webEndpoint == null) {
+            throw new RoomException(RoomException.Code.MEDIA_WEBRTC_ENDPOINT_ERROR_CODE,
+                    "Can't generate offer when WebRtcEndpoint is null (ep: " + endpointName + ")");
         }
+
+        return webEndpoint.generateOffer();
     }
 
     /**
@@ -487,19 +419,11 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
      * @see SdpEndpoint#processAnswer(String)
      */
     protected String processAnswer(String answer) throws RoomException {
-        if (this.isWeb()) {
-            if (webEndpoint == null) {
-                throw new RoomException(RoomException.Code.MEDIA_WEBRTC_ENDPOINT_ERROR_CODE,
-                        "Can't process answer when WebRtcEndpoint is null (ep: " + endpointName + ")");
-            }
-            return webEndpoint.processAnswer(answer);
-        } else {
-            if (endpoint == null) {
-                throw new RoomException(RoomException.Code.MEDIA_RTP_ENDPOINT_ERROR_CODE,
-                        "Can't process answer when RtpEndpoint is null (ep: " + endpointName + ")");
-            }
-            return endpoint.processAnswer(answer);
+        if (webEndpoint == null) {
+            throw new RoomException(RoomException.Code.MEDIA_WEBRTC_ENDPOINT_ERROR_CODE,
+                    "Can't process answer when WebRtcEndpoint is null (ep: " + endpointName + ")");
         }
+        return webEndpoint.processAnswer(answer);
     }
 
     /**
@@ -512,9 +436,6 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
      * @see Participant#sendIceCandidate(String, IceCandidate)
      */
     protected void registerOnIceCandidateEventListener() throws RoomException {
-        if (!this.isWeb()) {
-            return;
-        }
         if (webEndpoint == null) {
             throw new RoomException(RoomException.Code.MEDIA_WEBRTC_ENDPOINT_ERROR_CODE,
                     "Can't register event listener for null WebRtcEndpoint (ep: " + endpointName + ")");
@@ -529,9 +450,6 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
      * If supported, it instructs the internal endpoint to start gathering {@link IceCandidate}s.
      */
     protected void gatherCandidates() throws RoomException {
-        if (!this.isWeb()) {
-            return;
-        }
         if (webEndpoint == null) {
             throw new RoomException(RoomException.Code.MEDIA_WEBRTC_ENDPOINT_ERROR_CODE,
                     "Can't start gathering ICE candidates on null WebRtcEndpoint (ep: " + endpointName + ")");
