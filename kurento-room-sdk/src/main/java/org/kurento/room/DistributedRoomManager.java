@@ -8,14 +8,12 @@ import org.kurento.client.MediaPipeline;
 import org.kurento.client.MediaType;
 import org.kurento.room.api.KurentoClientProvider;
 import org.kurento.room.api.KurentoClientSessionInfo;
-import org.kurento.room.api.MutedMediaType;
-import org.kurento.room.api.pojo.KurentoUserId;
 import org.kurento.room.api.pojo.KurentoRoomId;
+import org.kurento.room.api.pojo.KurentoUserId;
 import org.kurento.room.api.pojo.UserParticipant;
 import org.kurento.room.distributed.interfaces.IChangeListener;
 import org.kurento.room.distributed.interfaces.IDistributedNamingService;
 import org.kurento.room.distributed.model.DistributedIceCandidate;
-import org.kurento.room.endpoint.DistributedMediaEndpoint;
 import org.kurento.room.endpoint.SdpType;
 import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IParticipant;
@@ -162,34 +160,6 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         return sdpResponse;
     }
 
-    public String publishMedia(String participantId, final String streamId, final String streamType, String sdp, boolean doLoopback) throws RoomException {
-        return publishMedia(participantId, streamId, streamType, true, sdp, null, null, doLoopback);
-    }
-
-    public String publishMedia(String participantId, final String streamId, final String streamType, boolean isOffer, String sdp, boolean doLoopback) throws RoomException {
-        return publishMedia(participantId, streamId, streamType, isOffer, sdp, null, null, doLoopback);
-    }
-
-    @Override
-    public String generatePublishOffer(String participantId, String streamId) throws RoomException {
-        log.debug("Request [GET_PUBLISH_SDP_OFFER] ({})", participantId);
-
-        IParticipant participant = getParticipant(participantId);
-        String name = participant.getName();
-        IRoom room = participant.getRoom();
-
-        participant.createPublishingEndpoint(streamId);
-
-        String sdpOffer = participant.preparePublishConnection(streamId);
-        if (sdpOffer == null) {
-            throw new RoomException(RoomException.Code.MEDIA_SDP_ERROR_CODE,
-                    "Error generating SDP offer for publishing user " + name);
-        }
-
-        room.newPublisher(participant, streamId);
-        return sdpOffer;
-    }
-
     @Override
     public void unpublishMedia(String participantId, String streamId) throws RoomException {
         log.debug("Request [UNPUBLISH_MEDIA] ({})", participantId);
@@ -264,89 +234,6 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
     }
 
     @Override
-    public void mutePublishedMedia(MutedMediaType muteType, String participantId, String streamId) throws RoomException {
-        log.debug("Request [MUTE_PUBLISHED] muteType={} ({})", muteType, participantId);
-        IParticipant participant = getParticipant(participantId);
-        String name = participant.getName();
-        if (participant.isClosed()) {
-            throw new RoomException(RoomException.Code.USER_CLOSED_ERROR_CODE,
-                    "Participant '" + name + "' has been closed");
-        }
-        if (!participant.isStreaming(streamId)) {
-            throw new RoomException(RoomException.Code.USER_NOT_STREAMING_ERROR_CODE, "Participant '" + name
-                    + "' is not streaming media");
-        }
-        participant.mutePublishedMedia(muteType, streamId);
-    }
-
-    @Override
-    public void unmutePublishedMedia(String participantId, String streamId) throws RoomException {
-        log.debug("Request [UNMUTE_PUBLISHED] muteType={} ({})", participantId);
-        IParticipant participant = getParticipant(participantId);
-        String name = participant.getName();
-        if (participant.isClosed()) {
-            throw new RoomException(RoomException.Code.USER_CLOSED_ERROR_CODE,
-                    "Participant '" + name + "' has been closed");
-        }
-        if (!participant.isStreaming(streamId)) {
-            throw new RoomException(RoomException.Code.USER_NOT_STREAMING_ERROR_CODE, "Participant '" + name
-                    + "' is not streaming media");
-        }
-        participant.unmutePublishedMedia(streamId);
-    }
-
-    @Override
-    public void muteSubscribedMedia(String remoteName, String streamId, MutedMediaType muteType, String participantId) throws RoomException {
-        IParticipant participant = getParticipant(participantId);
-        String name = participant.getName();
-        IRoom room = participant.getRoom();
-
-        remoteName = DistributedMediaEndpoint.toEndpointName(room.getTenant(), remoteName, streamId);
-        log.debug("Request [MUTE_SUBSCRIBED] remoteParticipant={} muteType={} ({})", remoteName,
-                muteType, participantId);
-
-        IParticipant senderParticipant = room.getParticipantByName(remoteName);
-        if (senderParticipant == null) {
-            log.warn("PARTICIPANT {}: Requesting to mute streaming from {} "
-                    + "in room {} but user could not be found", name, remoteName, room.getId());
-            throw new RoomException(RoomException.Code.USER_NOT_FOUND_ERROR_CODE,
-                    "User " + remoteName + " not found in room " + room.getId());
-        }
-
-        if (!senderParticipant.isStreaming(streamId)) {
-            log.warn("PARTICIPANT {}: Requesting to mute streaming from {} "
-                    + "in room {} but user is not streaming media", name, remoteName, room.getId());
-            throw new RoomException(RoomException.Code.USER_NOT_STREAMING_ERROR_CODE,
-                    "User '" + remoteName + " not streaming media in room '" + room.getId() + "'");
-        }
-        participant.muteSubscribedMedia(senderParticipant, streamId, muteType);
-    }
-
-    @Override
-    public void unmuteSubscribedMedia(String remoteName, String streamId, String participantId) throws RoomException {
-        IParticipant participant = getParticipant(participantId);
-        String name = participant.getName();
-        IRoom room = participant.getRoom();
-        remoteName = DistributedMediaEndpoint.toEndpointName(room.getTenant(), remoteName, streamId);
-        log.debug("Request [UNMUTE_SUBSCRIBED] remoteParticipant={} ({})", remoteName, participantId);
-
-        IParticipant senderParticipant = room.getParticipantByName(remoteName);
-        if (senderParticipant == null) {
-            log.warn("PARTICIPANT {}: Requesting to unmute streaming from {} "
-                    + "in room {} but user could not be found", name, remoteName, room.getId());
-            throw new RoomException(RoomException.Code.USER_NOT_FOUND_ERROR_CODE,
-                    "User " + remoteName + " not found in room " + room.getId());
-        }
-        if (!senderParticipant.isStreaming(streamId)) {
-            log.warn("PARTICIPANT {}: Requesting to unmute streaming from {} "
-                    + "in room {} but user is not streaming media", name, remoteName, room.getId());
-            throw new RoomException(RoomException.Code.USER_NOT_STREAMING_ERROR_CODE,
-                    "User '" + remoteName + " not streaming media in room '" + room.getId() + "'");
-        }
-        participant.unmuteSubscribedMedia(senderParticipant, streamId);
-    }
-
-    @Override
     @PreDestroy
     public void close() {
 //        closed = true;
@@ -385,95 +272,6 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
             }
         }
         return userParts;
-    }
-
-    @Override
-    public Set<UserParticipant> getPublishers(KurentoRoomId roomId) throws RoomException {
-        IRoom r = rooms.get(roomId);
-        if (r == null) {
-            throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomId + "' not found");
-        }
-        Collection<? extends IParticipant> participants = r.getParticipants();
-        Set<UserParticipant> userParts = new HashSet<UserParticipant>();
-        for (IParticipant p : participants) {
-            if (!p.isClosed() && p.isAnyStreaming()) {
-                userParts.add(new UserParticipant(p.getId(), p.getName(), p.getRoom().getTenant(), true));
-            }
-        }
-        return userParts;
-    }
-
-    @Override
-    public Set<UserParticipant> getSubscribers(KurentoRoomId roomId) throws RoomException {
-        IRoom r = rooms.get(roomId);
-        if (r == null) {
-            throw new RoomException(RoomException.Code.ROOM_NOT_FOUND_ERROR_CODE, "Room '" + roomId + "' not found");
-        }
-        Collection<? extends IParticipant> participants = r.getParticipants();
-        Set<UserParticipant> userParts = new HashSet<UserParticipant>();
-        for (IParticipant p : participants) {
-            if (!p.isClosed() && p.isSubscribed()) {
-                userParts.add(new UserParticipant(p.getId(), p.getName(), p.getRoom().getTenant(), p.isAnyStreaming()));
-            }
-        }
-        return userParts;
-    }
-
-    @Override
-    public Set<UserParticipant> getPeerPublishers(String participantId) throws RoomException {
-        IParticipant participant = getParticipant(participantId);
-        if (participant == null) {
-            throw new RoomException(RoomException.Code.USER_NOT_FOUND_ERROR_CODE,
-                    "No participant with id '" + participantId + "' was found");
-        }
-        Set<String> subscribedEndpoints = participant.getConnectedSubscribedEndpoints();
-        IRoom room = participant.getRoom();
-        Set<UserParticipant> userParts = new HashSet<UserParticipant>();
-        for (String epName : subscribedEndpoints) {
-            IParticipant p = room.getParticipantByName(epName);
-            userParts.add(new UserParticipant(p.getId(), p.getName(), room.getTenant()));
-        }
-        return userParts;
-    }
-
-    @Override
-    public Set<UserParticipant> getPeerSubscribers(String participantId) throws RoomException {
-        IParticipant participant = getParticipant(participantId);
-        if (participant == null) {
-            throw new RoomException(RoomException.Code.USER_NOT_FOUND_ERROR_CODE,
-                    "No participant with id '" + participantId + "' was found");
-        }
-        if (!participant.isAnyStreaming()) {
-            throw new RoomException(RoomException.Code.USER_NOT_STREAMING_ERROR_CODE, "Participant with id '"
-                    + participantId + "' is not a publisher yet");
-        }
-        Set<UserParticipant> userParts = new HashSet<UserParticipant>();
-        IRoom room = participant.getRoom();
-        String endpointName = participant.getName();
-        for (IParticipant p : room.getParticipants()) {
-            if (p.equals(participant)) {
-                continue;
-            }
-            Set<String> subscribedEndpoints = p.getConnectedSubscribedEndpoints();
-            if (subscribedEndpoints.contains(endpointName)) {
-                userParts.add(new UserParticipant(p.getId(), p.getName(), room.getTenant()));
-            }
-        }
-        return userParts;
-    }
-
-    @Override
-    public boolean isPublisherStreaming(String participantId) throws RoomException {
-        IParticipant participant = getParticipant(participantId);
-        if (participant == null) {
-            throw new RoomException(RoomException.Code.USER_NOT_FOUND_ERROR_CODE,
-                    "No participant with id '" + participantId + "' was found");
-        }
-        if (participant.isClosed()) {
-            throw new RoomException(RoomException.Code.USER_CLOSED_ERROR_CODE,
-                    "Participant '" + participant.getName() + "' has been closed");
-        }
-        return participant.isAnyStreaming();
     }
 
     private void createRoom(KurentoClientSessionInfo kcSessionInfo, KurentoRoomId roomId) throws RoomException {
