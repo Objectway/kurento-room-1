@@ -35,8 +35,7 @@ public class DistributedPublisherEndpointSerializer implements StreamSerializer<
     }
 
     @Override
-    public void write(ObjectDataOutput out, DistributedPublisherEndpoint endpoint)
-            throws IOException {
+    public void write(ObjectDataOutput out, DistributedPublisherEndpoint endpoint) throws IOException {
         //DistributedMediaEndpoint serialization
         DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getEndpoint(), DistributedRemoteObject.WEBRTCENDPOINT_CLASSNAME, endpoint.getKmsUrl());
 
@@ -63,8 +62,7 @@ public class DistributedPublisherEndpointSerializer implements StreamSerializer<
     }
 
     @Override
-    public DistributedPublisherEndpoint read(ObjectDataInput in)
-            throws IOException {
+    public DistributedPublisherEndpoint read(ObjectDataInput in) throws IOException {
         //DistributedMediaEndpoint deserialization
         boolean dataChannels = in.readBoolean();
         DistributedRemoteObject webEndpointRemoteObj = in.readObject();
@@ -85,7 +83,7 @@ public class DistributedPublisherEndpointSerializer implements StreamSerializer<
         DistributedRemoteObject hubportRemoteObj = in.readObject();
 
         KurentoClient client = kmsManager.getKurentoClient(kmsUrl);
-        IRoomManager roomManager = (IRoomManager) context.getBean("roomManager");
+        final IRoomManager roomManager = context.getBean(IRoomManager.class);
         return (DistributedPublisherEndpoint) context.getBean("distributedPublisherEndpoint", dataChannels, endpointName, kmsUrl, streamId, client, webEndpointRemoteObj,
                 recEndpointRemoteObj, passThruRemoteObj, hubportRemoteObj, roomId, participantId, muteType, connected, callStreamId, roomManager);
     }

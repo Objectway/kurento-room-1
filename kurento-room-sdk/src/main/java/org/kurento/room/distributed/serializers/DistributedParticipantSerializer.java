@@ -29,8 +29,7 @@ public class DistributedParticipantSerializer implements StreamSerializer<Distri
     }
 
     @Override
-    public void write(ObjectDataOutput out, DistributedParticipant distributedParticipant)
-            throws IOException {
+    public void write(ObjectDataOutput out, DistributedParticipant distributedParticipant) throws IOException {
         out.writeUTF(distributedParticipant.getId());
         out.writeUTF(distributedParticipant.getName());
         out.writeObject(distributedParticipant.getRoom().getId());
@@ -38,11 +37,10 @@ public class DistributedParticipantSerializer implements StreamSerializer<Distri
     }
 
     @Override
-    public DistributedParticipant read(ObjectDataInput in)
-            throws IOException {
+    public DistributedParticipant read(ObjectDataInput in) throws IOException {
         String id = in.readUTF();
         String name = in.readUTF();
-        IRoomManager roomManager = (IRoomManager) context.getBean("roomManager");
+        final IRoomManager roomManager = context.getBean(IRoomManager.class);
         KurentoRoomId roomId = in.readObject();
         DistributedRoom room = (DistributedRoom) roomManager.getRoomById(roomId);
         boolean dataChannels = in.readBoolean();

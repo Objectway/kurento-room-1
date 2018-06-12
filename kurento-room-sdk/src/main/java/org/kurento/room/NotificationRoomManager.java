@@ -30,6 +30,7 @@ import org.kurento.room.internal.DefaultKurentoClientSessionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import javax.annotation.PreDestroy;
 import java.util.Set;
@@ -44,24 +45,17 @@ import java.util.Set;
  *
  * @author <a href="mailto:rvlad@naevatec.com">Radu Tom Vlad</a>
  */
+@Component
 public class NotificationRoomManager {
     private final Logger log = LoggerFactory.getLogger(NotificationRoomManager.class);
-
-    private NotificationRoomHandler notificationRoomHandler;
 
     @Autowired
     private IRoomManager internalManager;
 
-    /**
-     * Provides an instance of the room manager by setting an event handler.
-     *
-     * @param notificationRoomHandler the room event handler implementation
-     * @param kcProvider              enables the manager to obtain Kurento Client instances
-     */
-    public NotificationRoomManager(NotificationRoomHandler notificationRoomHandler,
-                                   KurentoClientProvider kcProvider) {
-        super();
-        this.notificationRoomHandler = notificationRoomHandler;
+    @Autowired
+    private NotificationRoomHandler notificationRoomHandler;
+
+    public NotificationRoomManager() {
     }
 
     // ----------------- CLIENT-ORIGINATED REQUESTS ------------
