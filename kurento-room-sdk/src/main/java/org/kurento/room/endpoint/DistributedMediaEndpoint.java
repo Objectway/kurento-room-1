@@ -138,28 +138,8 @@ public abstract class DistributedMediaEndpoint implements IMediaEndpoint{
         this.owner = (DistributedParticipant) room.getParticipant(participantId);
         this.setListener(owner);
         this.pipeline = room.getPipeline();
-        try {
-            if (webEndpointInfo != null) {
-                final Class<KurentoObject> clazz = (Class<KurentoObject>) Class.forName(webEndpointInfo.getClassName());
-                this.webEndpoint = (WebRtcEndpoint) kurentoClient.getById(webEndpointInfo.getObjectRef(), clazz);
-//                endpointSubscription = registerElemErrListener(webEndpoint);
-            }
-            if (rtpEndpointInfo != null) {
-                final Class<KurentoObject> clazz = (Class<KurentoObject>) Class.forName(rtpEndpointInfo.getClassName());
-                this.endpoint = (RtpEndpoint) kurentoClient.getById(rtpEndpointInfo.getObjectRef(), clazz);
-//                endpointSubscription = registerElemErrListener(endpoint);
-            }
-
-            // We always have a KurentoObject as a result, even if it does not exist in the KMS
-
-        } catch (ClassNotFoundException ex) {
-            log.error(ex.toString());
-        } catch (Exception e) {
-            // Try to invoke this endpoint with objectRef ending in ".MediaPipelinez" to trigger
-            //      org.kurento.client.internal.server.ProtocolException: Exception creating Java Class for 'kurento.MediaPipelinez'
-            log.error(e.toString());
-        }
-
+        this.webEndpoint = DistributedRemoteObject.retrieveFromInfo(webEndpointInfo, kurentoClient);
+        this.endpoint = DistributedRemoteObject.retrieveFromInfo(rtpEndpointInfo, kurentoClient);
     }
 
     public boolean isWeb() {
