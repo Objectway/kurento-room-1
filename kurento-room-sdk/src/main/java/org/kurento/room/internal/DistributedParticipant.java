@@ -152,40 +152,6 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
     }
 
     @Override
-    public boolean isSubscribed() {
-        for (DistributedSubscriberEndpoint se : subscribers.values()) {
-            if (se.isConnectedToPublisher()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    @Override
-    public Set<String> getConnectedSubscribedEndpoints() {
-        Set<String> subscribedToSet = new HashSet<String>();
-        for (DistributedSubscriberEndpoint se : subscribers.values()) {
-            if (se.isConnectedToPublisher()) {
-                subscribedToSet.add(se.getEndpointName());
-            }
-        }
-        return subscribedToSet;
-    }
-
-    @Override
-    public String preparePublishConnection(String streamId) {
-        log.info("USER {}: Request to publish video in room {} by "
-                + "initiating connection from server", this.name, this.room.getId());
-
-        String sdpOffer = this.getPublisher(streamId).preparePublishConnection();
-
-        log.trace("USER {}: Publishing SdpOffer is {} for streamId {}", this.name, sdpOffer, streamId);
-        log.info("USER {}: Generated Sdp offer for publishing in room {} for streamId {}", this.name,
-                this.room.getId(), streamId);
-        return sdpOffer;
-    }
-
-    @Override
     public String publishToRoom(String streamId, String streamType, SdpType sdpType, String sdpString, boolean doLoopback, MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType) {
         log.info("USER {}: Request to publish video in room {} (sdp type {})", this.name,
                 this.room.getId(), sdpType);
@@ -312,60 +278,6 @@ public class DistributedParticipant implements IParticipant, IChangeListener<Dis
 
             releaseSubscriberEndpoint(senderName, subscriberEndpoint);
             subscriberEndpoint.destroyHazelcastResources();
-        }
-    }
-
-    @Override
-    public void mutePublishedMedia(MutedMediaType muteType, String streamId) {
-        if (muteType == null) {
-            throw new RoomException(RoomException.Code.MEDIA_MUTE_ERROR_CODE, "Mute type cannot be null");
-        }
-        this.getPublisher(streamId).mute(muteType);
-    }
-
-    @Override
-    public void unmutePublishedMedia(String streamId) {
-        if (this.getPublisher(streamId).getMuteType() == null) {
-            log.warn("PARTICIPANT {}: Trying to unmute published media. " + "But media is not muted.",
-                    this.name);
-        } else {
-            this.getPublisher(streamId).unmute();
-        }
-    }
-
-    @Override
-    public void muteSubscribedMedia(IParticipant sender, String streamId, MutedMediaType muteType) {
-        if (muteType == null) {
-            throw new RoomException(RoomException.Code.MEDIA_MUTE_ERROR_CODE, "Mute type cannot be null");
-        }
-        String senderName = DistributedMediaEndpoint.toEndpointName(sender.getRoom().getTenant(), sender.getName(), streamId);
-        DistributedSubscriberEndpoint subscriberEndpoint = subscribers.get(senderName);
-        if (subscriberEndpoint == null || subscriberEndpoint.getEndpoint() == null) {
-            log.warn("PARTICIPANT {}: Trying to mute incoming media from user {}. "
-                    + "But there is no such subscriber endpoint.", this.name, senderName);
-        } else {
-            log.debug("PARTICIPANT {}: Mute subscriber endpoint linked to user {}", this.name,
-                    senderName);
-            subscriberEndpoint.mute(muteType);
-        }
-    }
-
-    @Override
-    public void unmuteSubscribedMedia(IParticipant sender, String streamId) {
-        String senderName = DistributedMediaEndpoint.toEndpointName(sender.getRoom().getTenant(), sender.getName(), streamId);
-        DistributedSubscriberEndpoint subscriberEndpoint = subscribers.get(senderName);
-        if (subscriberEndpoint == null || subscriberEndpoint.getEndpoint() == null) {
-            log.warn("PARTICIPANT {}: Trying to unmute incoming media from user {}. "
-                    + "But there is no such subscriber endpoint.", this.name, senderName);
-        } else {
-            if (subscriberEndpoint.getMuteType() == null) {
-                log.warn("PARTICIPANT {}: Trying to unmute incoming media from user {}. "
-                        + "But media is not muted.", this.name, senderName);
-            } else {
-                log.debug("PARTICIPANT {}: Unmute subscriber endpoint linked to user {}", this.name,
-                        senderName);
-                subscriberEndpoint.unmute();
-            }
         }
     }
 

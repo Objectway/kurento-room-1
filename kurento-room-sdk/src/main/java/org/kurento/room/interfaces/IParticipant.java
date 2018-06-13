@@ -27,18 +27,11 @@ public interface IParticipant {
    */
   boolean isAnyStreaming();
 
-  boolean isSubscribed();
-  Set<String> getConnectedSubscribedEndpoints();
-  String preparePublishConnection(String streamId);
   String publishToRoom(String streamId, String streamType, SdpType sdpType, String sdpString, boolean doLoopback, MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType);
   void unpublishMedia(String streamId);
   String receiveMediaFrom(IParticipant sender, String streamId, String sdpOffer);
   void cancelReceivingAllMedias(String senderName);
   void cancelReceivingMedia(String senderName, String streamId);
-  void mutePublishedMedia(MutedMediaType muteType, String streamId);
-  void unmutePublishedMedia(String streamId);
-  void muteSubscribedMedia(IParticipant sender, String streamId, MutedMediaType muteType);
-  void unmuteSubscribedMedia(IParticipant sender, String streamId);
   void close();
 
   /**
