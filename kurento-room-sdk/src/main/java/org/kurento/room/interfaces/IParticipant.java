@@ -1,11 +1,9 @@
 package org.kurento.room.interfaces;
 
 import org.kurento.client.*;
-import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.endpoint.SdpType;
 
 import java.util.Enumeration;
-import java.util.Set;
 
 /**
  * Interface for a Participant

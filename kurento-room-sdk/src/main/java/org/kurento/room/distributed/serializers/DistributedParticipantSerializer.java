@@ -38,14 +38,14 @@ public class DistributedParticipantSerializer implements StreamSerializer<Distri
 
     @Override
     public DistributedParticipant read(ObjectDataInput in) throws IOException {
-        String id = in.readUTF();
-        String name = in.readUTF();
-        final IRoomManager roomManager = context.getBean(IRoomManager.class);
-        KurentoRoomId roomId = in.readObject();
-        DistributedRoom room = (DistributedRoom) roomManager.getRoomById(roomId);
-        boolean dataChannels = in.readBoolean();
-        DistributedParticipant distributedParticipant = (DistributedParticipant) context.getBean("distributedParticipant", id, name, room, dataChannels);
+        final String id = in.readUTF();
+        final String name = in.readUTF();
+        final KurentoRoomId roomId = in.readObject();
+        final boolean dataChannels = in.readBoolean();
 
+        final IRoomManager roomManager = context.getBean(IRoomManager.class);
+        final DistributedRoom room = (DistributedRoom) roomManager.getRoomById(roomId);
+        final DistributedParticipant distributedParticipant = (DistributedParticipant) context.getBean("distributedParticipant", id, name, room, dataChannels);
         return distributedParticipant;
     }
 

@@ -142,15 +142,13 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
                 loopbackAlternativeSrc == null, loopbackConnectionType, doLoopback,
                 participantId);
 
-        SdpType sdpType = isOffer ? SdpType.OFFER : SdpType.ANSWER;
-        IParticipant participant = getParticipant(participantId);
-        String name = participant.getName();
-        IRoom room = participant.getRoom();
-
+        final SdpType sdpType = isOffer ? SdpType.OFFER : SdpType.ANSWER;
+        final IParticipant participant = getParticipant(participantId);
+        final String name = participant.getName();
+        final IRoom room = participant.getRoom();
         participant.createPublishingEndpoint(streamId);
 
-        String sdpResponse = participant.publishToRoom(streamId, streamType, sdpType, sdp, doLoopback,
-                loopbackAlternativeSrc, loopbackConnectionType);
+        final String sdpResponse = participant.publishToRoom(streamId, streamType, sdpType, sdp, doLoopback, loopbackAlternativeSrc, loopbackConnectionType);
         if (sdpResponse == null) {
             throw new RoomException(RoomException.Code.MEDIA_SDP_ERROR_CODE,
                     "Error generating SDP response for publishing user " + name);

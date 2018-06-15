@@ -36,47 +36,39 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
 
     @Override
     public void write(ObjectDataOutput out, DistributedSubscriberEndpoint endpoint) throws IOException {
-        //DistributedMediaEndpoint serialization
-        DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getEndpoint(), DistributedRemoteObject.WEBRTCENDPOINT_CLASSNAME, endpoint.getKmsUrl());
-
+        // DistributedMediaEndpoint serialization
+        final  DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getEndpoint(), DistributedRemoteObject.WEBRTCENDPOINT_CLASSNAME, endpoint.getKmsUrl());
         out.writeBoolean(endpoint.isDataChannels());
         out.writeObject(webEndpointRemoteObj);
         out.writeObject(endpoint.getOwner().getRoom().getId());
         out.writeUTF(endpoint.getOwner().getId());
         out.writeUTF(endpoint.getEndpointName());
-
-        MutedMediaType muteType = endpoint.getMuteType();
-
+        final MutedMediaType muteType = endpoint.getMuteType();
         out.writeObject((muteType != null) ? muteType.name() : null);
-
         out.writeUTF(endpoint.getKmsUrl());
         out.writeUTF(endpoint.getStreamId());
 
-        //DistributedSubscriberEndpoint Serialization
+        // DistributedSubscriberEndpoint Serialization
         out.writeBoolean(endpoint.isConnectedToPublisher());
     }
 
     @Override
-    public DistributedSubscriberEndpoint read(ObjectDataInput in)
-            throws IOException {
-        //DistributedMediaEndpoint deserialization
-        boolean dataChannels = in.readBoolean();
-        DistributedRemoteObject webEndpointRemoteObj = in.readObject();
-        KurentoRoomId roomId = in.readObject();
-        String participantId = in.readUTF();
-        String endpointName = in.readUTF();
-        String muteTypeStr = in.readObject();
-        MutedMediaType muteType = (muteTypeStr != null) ? MutedMediaType.valueOf(muteTypeStr) : null;
-        String kmsUrl = in.readUTF();
-        String streamId = in.readUTF();
+    public DistributedSubscriberEndpoint read(ObjectDataInput in) throws IOException {
+        // DistributedMediaEndpoint deserialization
+        final boolean dataChannels = in.readBoolean();
+        final DistributedRemoteObject webEndpointRemoteObj = in.readObject();
+        final KurentoRoomId roomId = in.readObject();
+        final String participantId = in.readUTF();
+        final String endpointName = in.readUTF();
+        final String muteTypeStr = in.readObject();
+        final MutedMediaType muteType = (muteTypeStr != null) ? MutedMediaType.valueOf(muteTypeStr) : null;
+        final String kmsUrl = in.readUTF();
+        final String streamId = in.readUTF();
 
-        //DistributedSubscriberEndpoint serialization
-        boolean connectedToPublisher = in.readBoolean();
-
-        KurentoClient client = kmsManager.getKurentoClient(kmsUrl);
-
+        // DistributedSubscriberEndpoint serialization
+        final boolean connectedToPublisher = in.readBoolean();
+        final KurentoClient client = kmsManager.getKurentoClient(kmsUrl);
         final IRoomManager roomManager = context.getBean(IRoomManager.class);
-
         return (DistributedSubscriberEndpoint) context.getBean("distributedSubscriberEndpoint", dataChannels, endpointName, kmsUrl, streamId, client, webEndpointRemoteObj,
                 roomId, participantId, muteType, connectedToPublisher, roomManager);
     }

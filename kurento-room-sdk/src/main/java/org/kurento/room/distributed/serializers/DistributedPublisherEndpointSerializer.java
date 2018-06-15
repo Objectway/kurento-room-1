@@ -36,24 +36,22 @@ public class DistributedPublisherEndpointSerializer implements StreamSerializer<
 
     @Override
     public void write(ObjectDataOutput out, DistributedPublisherEndpoint endpoint) throws IOException {
-        //DistributedMediaEndpoint serialization
-        DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getEndpoint(), DistributedRemoteObject.WEBRTCENDPOINT_CLASSNAME, endpoint.getKmsUrl());
-
+        // DistributedMediaEndpoint serialization
+        final DistributedRemoteObject webEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getEndpoint(), DistributedRemoteObject.WEBRTCENDPOINT_CLASSNAME, endpoint.getKmsUrl());
         out.writeBoolean(endpoint.isDataChannels());
         out.writeObject(webEndpointRemoteObj);
         out.writeObject(endpoint.getOwner().getRoom().getId());
         out.writeUTF(endpoint.getOwner().getId());
         out.writeUTF(endpoint.getEndpointName());
-        MutedMediaType muteType = endpoint.getMuteType();
-
+        final MutedMediaType muteType = endpoint.getMuteType();
         out.writeObject((muteType != null) ? muteType.name() : null);
         out.writeUTF(endpoint.getKmsUrl());
         out.writeUTF(endpoint.getStreamId());
 
-        //DistributedPublisherEndpointSerialization
-        DistributedRemoteObject passThruRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getPassThru(), DistributedRemoteObject.PASSTHROUGH_CLASSNAME, endpoint.getKmsUrl());
-        DistributedRemoteObject recEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getRecorderEndpoint(), DistributedRemoteObject.RECORDERENDPOINT_CLASSNAME, endpoint.getKmsUrl());
-        DistributedRemoteObject hubportRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getHubPort(), DistributedRemoteObject.HUBPORT_CLASSNAME, endpoint.getKmsUrl());
+        // DistributedPublisherEndpointSerialization
+        final DistributedRemoteObject passThruRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getPassThru(), DistributedRemoteObject.PASSTHROUGH_CLASSNAME, endpoint.getKmsUrl());
+        final DistributedRemoteObject recEndpointRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getRecorderEndpoint(), DistributedRemoteObject.RECORDERENDPOINT_CLASSNAME, endpoint.getKmsUrl());
+        final DistributedRemoteObject hubportRemoteObj = DistributedRemoteObject.fromKurentoObject(endpoint.getHubPort(), DistributedRemoteObject.HUBPORT_CLASSNAME, endpoint.getKmsUrl());
         out.writeObject(passThruRemoteObj);
         out.writeBoolean(endpoint.isConnected());
         out.writeObject(recEndpointRemoteObj);
@@ -63,26 +61,26 @@ public class DistributedPublisherEndpointSerializer implements StreamSerializer<
 
     @Override
     public DistributedPublisherEndpoint read(ObjectDataInput in) throws IOException {
-        //DistributedMediaEndpoint deserialization
-        boolean dataChannels = in.readBoolean();
-        DistributedRemoteObject webEndpointRemoteObj = in.readObject();
-        KurentoRoomId roomId = in.readObject();
-        String participantId = in.readUTF();
-        String endpointName = in.readUTF();
+        // DistributedMediaEndpoint deserialization
+        final boolean dataChannels = in.readBoolean();
+        final DistributedRemoteObject webEndpointRemoteObj = in.readObject();
+        final KurentoRoomId roomId = in.readObject();
+        final String participantId = in.readUTF();
+        final String endpointName = in.readUTF();
 
-        String muteTypeStr = in.readObject();
-        MutedMediaType muteType = (muteTypeStr != null) ? MutedMediaType.valueOf(muteTypeStr) : null;
-        String kmsUrl = in.readUTF();
-        String streamId = in.readUTF();
+        final String muteTypeStr = in.readObject();
+        final MutedMediaType muteType = (muteTypeStr != null) ? MutedMediaType.valueOf(muteTypeStr) : null;
+        final String kmsUrl = in.readUTF();
+        final String streamId = in.readUTF();
 
-        //DistributedPublisherEndpoint serialization
-        DistributedRemoteObject passThruRemoteObj = in.readObject();
-        boolean connected = in.readBoolean();
-        DistributedRemoteObject recEndpointRemoteObj = in.readObject();
-        Long callStreamId = in.readObject();
-        DistributedRemoteObject hubportRemoteObj = in.readObject();
+        // DistributedPublisherEndpoint serialization
+        final DistributedRemoteObject passThruRemoteObj = in.readObject();
+        final boolean connected = in.readBoolean();
+        final DistributedRemoteObject recEndpointRemoteObj = in.readObject();
+        final Long callStreamId = in.readObject();
+        final DistributedRemoteObject hubportRemoteObj = in.readObject();
 
-        KurentoClient client = kmsManager.getKurentoClient(kmsUrl);
+        final KurentoClient client = kmsManager.getKurentoClient(kmsUrl);
         final IRoomManager roomManager = context.getBean(IRoomManager.class);
         return (DistributedPublisherEndpoint) context.getBean("distributedPublisherEndpoint", dataChannels, endpointName, kmsUrl, streamId, client, webEndpointRemoteObj,
                 recEndpointRemoteObj, passThruRemoteObj, hubportRemoteObj, roomId, participantId, muteType, connected, callStreamId, roomManager);
