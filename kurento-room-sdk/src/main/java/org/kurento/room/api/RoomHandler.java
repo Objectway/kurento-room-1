@@ -16,12 +16,11 @@
 
 package org.kurento.room.api;
 
-import java.util.Collection;
-import java.util.Set;
-
 import org.kurento.client.IceCandidate;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.interfaces.IParticipant;
-import org.kurento.room.internal.Participant;
+
+import java.util.Collection;
 
 /**
  * Handler for events triggered from media objects.
@@ -34,64 +33,40 @@ public interface RoomHandler {
    * Called when a new {@link IceCandidate} is gathered for the local WebRTC endpoint. The user
    * should receive a notification with all the provided information so that the candidate is added
    * to the remote WebRTC peer.
-   *
-   * @param roomName
+   *  @param roomId
    *          name of the room
    * @param participantId
    *          identifier of the participant
    * @param participantName
-   *          name of the participant
+ *          name of the participant
    * @param endpoint
-   *          String the identifier of the local WebRTC endpoint (created in the server)
+*          String the identifier of the local WebRTC endpoint (created in the server)
    * @param candidate
-   *          the gathered {@link IceCandidate}
+*          the gathered {@link IceCandidate}
    */
-  void onIceCandidate(String roomName, String participantId, String participantName, String endpoint, final String streamId, IceCandidate candidate);
+  void onIceCandidate(KurentoRoomId roomId, String participantId, String participantName, String endpoint, final String streamId, IceCandidate candidate);
 
   /**
    * Called as a result of an error intercepted on a media element of a participant. The participant
    * should be notified.
-   *
-   * @param roomName
+   *  @param roomId
    *          name of the room
    * @param participantId
    *          identifier of the participant
    * @param participantName
-   *          name of the participant
+ *          name of the participant
    * @param errorDescription
-   *          description of the error
    */
-  void onMediaElementError(String roomName, String participantId, String participantName, String errorDescription);
+  void onMediaElementError(KurentoRoomId roomId, String participantId, String participantName, String errorDescription);
 
   /**
    * Called as a result of an error intercepted on the media pipeline. The affected participants
    * should be notified.
-   *
-   * @param roomName
+   *  @param roomId
    *          the room where the error occurred
    * @param participants
    *          the participants
    * @param errorDescription
-   *          description of the error
    */
-  void onPipelineError(String roomName, Collection<IParticipant> participants, String errorDescription);
-
-    /**
-     * Called when a new participant joins the conference and there are filters configured
-     *
-     * @param roomName
-     * @param participant
-     * @param filterId
-     * @param state
-     */
-    void updateFilter(String roomName, Participant participant, String filterId, String state);
-
-    /**
-     * Called to get the next state of a filter when requested by a call to updateFilter
-     *
-     * @param filterId The filter ID
-     * @param state    The current state of the filter
-     * @return Then new state of the filter
-     */
-    String getNextFilterState(String filterId, String state);
+  void onPipelineError(KurentoRoomId roomId, Collection<IParticipant> participants, String errorDescription);
 }

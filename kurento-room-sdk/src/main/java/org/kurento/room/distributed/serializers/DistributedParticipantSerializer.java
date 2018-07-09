@@ -3,10 +3,10 @@ package org.kurento.room.distributed.serializers;
 import com.hazelcast.nio.ObjectDataInput;
 import com.hazelcast.nio.ObjectDataOutput;
 import com.hazelcast.nio.serialization.StreamSerializer;
-import org.kurento.room.RoomManager;
-import org.kurento.room.distributed.DistributedParticipant;
-import org.kurento.room.distributed.DistributedRoom;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.interfaces.IRoomManager;
+import org.kurento.room.internal.DistributedParticipant;
+import org.kurento.room.internal.DistributedRoom;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
@@ -29,26 +29,23 @@ public class DistributedParticipantSerializer implements StreamSerializer<Distri
     }
 
     @Override
-    public void write(ObjectDataOutput out, DistributedParticipant distributedParticipant)
-            throws IOException {
+    public void write(ObjectDataOutput out, DistributedParticipant distributedParticipant) throws IOException {
         out.writeUTF(distributedParticipant.getId());
         out.writeUTF(distributedParticipant.getName());
-        out.writeUTF(distributedParticipant.getRoom().getName());
+        out.writeObject(distributedParticipant.getRoom().getId());
         out.writeBoolean(distributedParticipant.isDataChannels());
-        out.writeBoolean(distributedParticipant.isWeb());
     }
 
     @Override
-    public DistributedParticipant read(ObjectDataInput in)
-            throws IOException {
-        String id = in.readUTF();
-        String name = in.readUTF();
-        IRoomManager roomManager = (IRoomManager) context.getBean("roomManager");
-        DistributedRoom room = (DistributedRoom) roomManager.getRoomByName(in.readUTF());
-        boolean dataChannels = in.readBoolean();
-        boolean web = in.readBoolean();
-        DistributedParticipant distributedParticipant = (DistributedParticipant) context.getBean("distributedParticipant", id, name, room, dataChannels, web);
+    public DistributedParticipant read(ObjectDataInput in) throws IOException {
+        final String id = in.readUTF();
+        final String name = in.readUTF();
+        final KurentoRoomId roomId = in.readObject();
+        final boolean dataChannels = in.readBoolean();
 
+        final IRoomManager roomManager = context.getBean(IRoomManager.class);
+        final DistributedRoom room = (DistributedRoom) roomManager.getRoomById(roomId);
+        final DistributedParticipant distributedParticipant = (DistributedParticipant) context.getBean("distributedParticipant", id, name, room, dataChannels);
         return distributedParticipant;
     }
 

@@ -50,7 +50,7 @@
 		<dependency>
 			<groupId>com.hazelcast</groupId>
 			<artifactId>hazelcast-all</artifactId>
-			<version>3.6.5</version>
+			<version>3.10.1</version>
 		</dependency>
 
 		<dependency>
