@@ -10,14 +10,11 @@ import org.springframework.stereotype.Component;
 @Component
 public class DistributedNamingService implements IDistributedNamingService {
 
-    @Value("#{@props['hazelcast.naming.profile_override'] ?:'${config.profile}'}")
-    private String profile;
+	@Value("${hazelcast.naming.prefix:@null}")
+	private String namespacePrefix;
 
-    @Value("${hazelcast.naming.prefix}")
-    private String namespacePrefix;
-
-    @Override
-    public String getName(final String suffix) {
-        return profile + "-" + namespacePrefix + "-" + suffix;
-    }
+	@Override
+	public String getName(final String suffix) {
+		return namespacePrefix != null ? namespacePrefix + "-" + suffix : suffix;
+	}
 }

@@ -1,6 +1,7 @@
 package org.kurento.room.interfaces;
 
 import org.kurento.client.*;
+import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.exception.RoomException;
 
 import java.util.Collection;
@@ -40,7 +41,7 @@ public interface IRoom {
 
     String getName();
     MediaPipeline getPipeline();
-    void join(String participantId, String userName, boolean dataChannels, boolean webParticipant) throws RoomException;
+    void join(String participantId, String userName, boolean dataChannels) throws RoomException;
     void newPublisher(IParticipant participant, String streamId);
     void cancelPublisher(IParticipant participant, String streamId);
     void leave(String participantId) throws RoomException;
@@ -55,5 +56,8 @@ public interface IRoom {
     int getActivePublishers();
     void registerPublisher(String participantId);
     void deregisterPublisher(String participantId);
-    void updateFilter(String filterId);
+
+    KurentoRoomId getId();
+
+    String getTenant();
 }

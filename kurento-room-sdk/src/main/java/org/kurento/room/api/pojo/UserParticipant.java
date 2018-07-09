@@ -26,18 +26,21 @@ public class UserParticipant {
   private String participantId;
   private String userName;
   private boolean streaming = false;
+  private String tenant;
 
-  public UserParticipant(String participantId, String userName, boolean streaming) {
+  public UserParticipant(String participantId, String userName, String tenant, boolean streaming) {
     super();
     this.participantId = participantId;
     this.userName = userName;
+    this.tenant = tenant;
     this.streaming = streaming;
   }
 
-  public UserParticipant(String participantId, String userName) {
+  public UserParticipant(String participantId, String userName, String tenant) {
     super();
     this.participantId = participantId;
     this.userName = userName;
+    this.tenant = tenant;
   }
 
   public String getParticipantId() {
@@ -64,59 +67,46 @@ public class UserParticipant {
     this.streaming = streaming;
   }
 
-  @Override
-  public int hashCode() {
-    final int prime = 31;
-    int result = 1;
-    result = prime * result + (participantId == null ? 0 : participantId.hashCode());
-    result = prime * result + (streaming ? 1231 : 1237);
-    result = prime * result + (userName == null ? 0 : userName.hashCode());
+  public String getTenant() {
+    return tenant;
+  }
+
+  public void setTenant(String tenant) {
+    this.tenant = tenant;
+  }
+
+  @Override public int hashCode() {
+    int result = participantId != null ? participantId.hashCode() : 0;
+    result = 31 * result + (userName != null ? userName.hashCode() : 0);
+    result = 31 * result + (streaming ? 1 : 0);
+    result = 31 * result + (tenant != null ? tenant.hashCode() : 0);
     return result;
   }
 
-  @Override
-  public boolean equals(Object obj) {
-    if (this == obj) {
+  @Override public boolean equals(Object o) {
+    if (this == o)
       return true;
-    }
-    if (obj == null) {
+    if (!(o instanceof UserParticipant))
       return false;
-    }
-    if (!(obj instanceof UserParticipant)) {
+
+    UserParticipant that = (UserParticipant) o;
+
+    if (streaming != that.streaming)
       return false;
-    }
-    UserParticipant other = (UserParticipant) obj;
-    if (participantId == null) {
-      if (other.participantId != null) {
-        return false;
-      }
-    } else if (!participantId.equals(other.participantId)) {
+    if (participantId != null ? !participantId.equals(that.participantId) : that.participantId != null)
       return false;
-    }
-    if (streaming != other.streaming) {
+    if (userName != null ? !userName.equals(that.userName) : that.userName != null)
       return false;
-    }
-    if (userName == null) {
-      if (other.userName != null) {
-        return false;
-      }
-    } else if (!userName.equals(other.userName)) {
-      return false;
-    }
-    return true;
+    return tenant != null ? tenant.equals(that.tenant) : that.tenant == null;
   }
 
-  @Override
-  public String toString() {
-    StringBuilder builder = new StringBuilder();
-    builder.append("[");
-    if (participantId != null) {
-      builder.append("participantId=").append(participantId).append(", ");
-    }
-    if (userName != null) {
-      builder.append("userName=").append(userName).append(", ");
-    }
-    builder.append("streaming=").append(streaming).append("]");
-    return builder.toString();
+  @Override public String toString() {
+    final StringBuilder sb = new StringBuilder("UserParticipant{");
+    sb.append("participantId='").append(participantId).append('\'');
+    sb.append(", userName='").append(userName).append('\'');
+    sb.append(", streaming=").append(streaming);
+    sb.append(", tenant='").append(tenant).append('\'');
+    sb.append('}');
+    return sb.toString();
   }
 }

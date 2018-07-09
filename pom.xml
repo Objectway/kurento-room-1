@@ -81,30 +81,7 @@
 			</activation>
 			<modules>
 				<module>kurento-room-sdk</module>
-				<module>kurento-room-server</module>
 				<module>kurento-room-client</module>
-				<module>kurento-room-client-js</module>
-				<!--
-				<module>kurento-room-test</module>
-				<module>kurento-room-demo</module>
-				<module>kurento-room-basicapp</module> -->
-			</modules>
-		</profile>
-		<profile>
-			<id>deploy</id>
-			<modules>
-				<module>kurento-room-sdk</module>
-				<module>kurento-room-server</module>
-				<module>kurento-room-client</module>
-				<module>kurento-room-client-js</module>
-				<module>kurento-room-test</module>
-			</modules>
-		</profile>
-		<profile>
-			<id>integration</id>
-			<modules>
-				<module>kurento-room-demo</module>
-				<module>kurento-room-basicapp</module>
 			</modules>
 		</profile>
 	</profiles>
@@ -118,35 +95,9 @@
 			</dependency>
 			<dependency>
 				<groupId>org.kurento</groupId>
-				<artifactId>kurento-room-server-ow</artifactId>
-				<version>${version.kurento.room}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.kurento</groupId>
 				<artifactId>kurento-room-client-ow</artifactId>
 				<version>${version.kurento.room}</version>
 			</dependency>
-			<dependency>
-				<groupId>org.kurento</groupId>
-				<artifactId>kurento-room-client-js-ow</artifactId>
-				<version>${version.kurento.room}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.kurento</groupId>
-				<artifactId>kurento-room-test-ow</artifactId>
-				<version>${version.kurento.room}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.kurento</groupId>
-				<artifactId>kurento-room-demo-ow</artifactId>
-				<version>${version.kurento.room}</version>
-			</dependency>
-			<dependency>
-				<groupId>org.kurento</groupId>
-				<artifactId>kurento-room-basicapp-ow</artifactId>
-				<version>${version.kurento.room}</version>
-			</dependency>
-
 			<dependency>
 				<groupId>org.kurento</groupId>
 				<artifactId>kurento-jsonrpc-js</artifactId>

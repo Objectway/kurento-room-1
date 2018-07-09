@@ -3,26 +3,22 @@ package org.kurento.room.interfaces;
 import org.kurento.client.IceCandidate;
 import org.kurento.client.MediaPipeline;
 import org.kurento.client.SdpEndpoint;
+import org.kurento.client.WebRtcEndpoint;
 import org.kurento.room.api.MutedMediaType;
 import org.kurento.room.distributed.interfaces.ICountDownLatchWrapper;
 import org.kurento.room.exception.RoomException;
-import org.kurento.room.internal.Participant;
-
-import java.util.concurrent.CountDownLatch;
 
 /**
  * Created by sturiale on 07/12/16.
  */
 public interface IMediaEndpoint {
-    boolean isWeb();
-
     IParticipant getOwner();
 
-    SdpEndpoint getEndpoint();
+    WebRtcEndpoint getEndpoint();
 
-    SdpEndpoint createEndpoint(ICountDownLatchWrapper endpointLatch);
+    WebRtcEndpoint createEndpoint(ICountDownLatchWrapper endpointLatch);
 
-    SdpEndpoint createEndpoint();
+    WebRtcEndpoint createEndpoint();
 
     MediaPipeline getPipeline();
 

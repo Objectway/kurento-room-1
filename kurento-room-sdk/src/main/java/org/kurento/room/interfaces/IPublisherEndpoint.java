@@ -42,8 +42,6 @@ public interface IPublisherEndpoint extends IMediaEndpoint {
 
     void unregisterErrorListeners();
 
-    Collection<MediaElement> getMediaElements();
-
     String publish(SdpType sdpType, String sdpString, boolean doLoopback,
                    MediaElement loopbackAlternativeSrc, MediaType loopbackConnectionType);
 
@@ -56,15 +54,6 @@ public interface IPublisherEndpoint extends IMediaEndpoint {
     void disconnectFrom(MediaElement sink);
 
     void disconnectFrom(MediaElement sink, MediaType type);
-
-    String apply(MediaElement shaper) throws RoomException;
-
-    String apply(MediaElement shaper, MediaType type) throws RoomException;
-
-    void revert(MediaElement shaper) throws RoomException;
-
-    void revert(MediaElement shaper, boolean releaseElement) throws
-      RoomException;
 
     void mute(MutedMediaType muteType);
 
