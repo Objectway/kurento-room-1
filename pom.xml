@@ -9,7 +9,7 @@
 	</parent>
 
 	<artifactId>kurento-room-ow</artifactId>
-	<version>10.0.0-RC0</version>
+	<version>10.1.0-RC0</version>
 	<packaging>pom</packaging>
 
 	<name>Kurento Room</name>
@@ -62,7 +62,7 @@
 
 	<properties>
 		<!-- Kurento versions -->
-		<version.kurento.room>10.0.0-RC0</version.kurento.room>
+		<version.kurento.room>10.1.0-RC0</version.kurento.room>
 
 		<version.kurento.jsonrpc.js>5.1.4-SNAPSHOT</version.kurento.jsonrpc.js>
 
