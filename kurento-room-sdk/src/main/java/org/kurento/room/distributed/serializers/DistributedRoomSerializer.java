@@ -9,6 +9,7 @@ import org.kurento.room.DistributedRoomManager;
 import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.interfaces.IRoomManager;
+import org.kurento.room.interfaces.KurentoMuxConnectionListener;
 import org.kurento.room.internal.DistributedRoom;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
@@ -57,9 +58,11 @@ public class DistributedRoomSerializer implements StreamSerializer<DistributedRo
         final DistributedRemoteObject hubPortInfo = in.readObject();
         final DistributedRemoteObject recorderInfo = in.readObject();
 
-        final KurentoClient client = kmsManager.getKurentoClient(kmsUri);
-        final DistributedRoom distributedRoom = (DistributedRoom) context.getBean("distributedRoom", roomId, client, destroyKurentoClient, closed, pipelineInfo, compositeInfo, hubPortInfo, recorderInfo);
         final IRoomManager roomManager = context.getBean(IRoomManager.class);
+        final KurentoMuxConnectionListener muxListener = new KurentoMuxConnectionListener(roomManager);
+        final KurentoClient client = kmsManager.getKurentoClient(kmsUri, muxListener);
+        muxListener.setClient(client);
+        final DistributedRoom distributedRoom = (DistributedRoom) context.getBean("distributedRoom", roomId, client, destroyKurentoClient, closed, pipelineInfo, compositeInfo, hubPortInfo, recorderInfo);
         distributedRoom.setListener((DistributedRoomManager)roomManager);
 
         return distributedRoom;

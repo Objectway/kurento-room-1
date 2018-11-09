@@ -19,7 +19,7 @@ import java.util.Set;
  * The application is in control of notifying any remote parties with the outcome of executing the
  * requested actions.
  */
-public interface IRoomManager {
+public interface IRoomManager extends KurentoClientAwareConnectionListener {
     /**
      * Represents a client's request to join a room. The room must exist in order to perform the
      * join.<br/>
