@@ -19,8 +19,10 @@ import org.kurento.room.exception.RoomException;
 import org.kurento.room.interfaces.IParticipant;
 import org.kurento.room.interfaces.IRoom;
 import org.kurento.room.interfaces.IRoomManager;
+import org.kurento.room.interfaces.KurentoMuxConnectionListener;
 import org.kurento.room.internal.DistributedParticipant;
 import org.kurento.room.internal.DistributedRoom;
+import org.kurento.room.internal.ReflectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -282,10 +284,12 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
 //        }
 
         // We may not have a kcProvider object!
-        KurentoClient kurentoClient = kcProvider != null ? kcProvider.getKurentoClient(kcSessionInfo) : null;
-        DistributedRoom room = (DistributedRoom) context.getBean("distributedRoom", roomId, kurentoClient, kcProvider != null ? kcProvider.destroyWhenUnused() : true);
+        final KurentoMuxConnectionListener muxListener = new KurentoMuxConnectionListener(this);
+        final KurentoClient kurentoClient = kcProvider != null ? kcProvider.getKurentoClient(kcSessionInfo, muxListener) : null;
+        muxListener.setClient(kurentoClient);
+        final DistributedRoom room = (DistributedRoom) context.getBean("distributedRoom", roomId, kurentoClient, kcProvider != null ? kcProvider.destroyWhenUnused() : true);
         room.setListener(this);
-        DistributedRoom oldRoom = rooms.putIfAbsent(roomId, room);
+        final DistributedRoom oldRoom = rooms.putIfAbsent(roomId, room);
 
         if (oldRoom != null) {
             log.warn("Room '{}' has just been created by another thread", roomName);
@@ -364,7 +368,6 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
         return new UserParticipant(participantId, participant.getName(), participant.getRoom().getTenant());
     }
 
-
     @Override
     public void onChange(DistributedRoom room) {
         rooms.set(room.getId(), room);
@@ -385,5 +388,33 @@ public class DistributedRoomManager implements IRoomManager, IChangeListener<Dis
     @Override
     public IRoom getRoomById(KurentoRoomId roomId) {
         return rooms.get(roomId);
+    }
+
+    // -------------------- KurentoClientAwareConnectionListener  ----------------------
+    @Override
+    public void connected(final KurentoClient kurentoClient) {
+        log.info("KCL --- Connected, client id: {}", kurentoClient.getSessionId());
+    }
+
+    @Override
+    public void connectionFailed(final KurentoClient kurentoClient) {
+        log.info("KCL --- Connection failed, client id: {}", kurentoClient.getSessionId());
+    }
+
+    @Override
+    public void disconnected(final KurentoClient kurentoClient) {
+        final String failedKmsUri = ReflectionUtils.getKmsUri(kurentoClient);
+        log.info("KCL --- Connection lost with KMS: {}", failedKmsUri);
+
+        // If a KMS goes down when a call is ongoing, after some time the front-end sees the ice state failed
+        // and calls leaveRoom(). If we do not destroy the kurentoClient here, the leaveRoom operation takes too
+        // much time (due to reconnection attempts) and therefore the FE thinks that the operation has timed out.
+        // As a consequence, the FE does not clear its inner room map and prevents the user from ever calling again.
+        kurentoClient.destroy();
+    }
+
+    @Override
+    public void reconnected(final KurentoClient kurentoClient, boolean sameServer) {
+        log.info("KCL --- Reconnected, sameServer: {}, client id: {}", sameServer, kurentoClient.getSessionId());
     }
 }

@@ -17,6 +17,7 @@
 package org.kurento.room.api;
 
 import org.kurento.client.KurentoClient;
+import org.kurento.client.KurentoConnectionListener;
 import org.kurento.room.exception.RoomException;
 
 /**
@@ -32,21 +33,22 @@ public interface KurentoClientProvider {
    * Obtains a {@link KurentoClient} instance given the custom session bean. Normally, it'd be
    * called during a room's instantiation.
    *
-   * @param sessionInfo
-   *          custom information object required by the implementors of this interface
+   * @param sessionInfo custom information object required by the implementors of this interface
+   * @param listener an optional connection listener (may be null)
    * @return the {@link KurentoClient} instance
    * @throws RoomException
    *           in case there is an error obtaining a {@link KurentoClient} instance
    */
-  KurentoClient getKurentoClient(KurentoClientSessionInfo sessionInfo) throws RoomException;
+  KurentoClient getKurentoClient(final KurentoClientSessionInfo sessionInfo, final KurentoConnectionListener listener) throws RoomException;
 
   /**
    * Returns a KurentoClient linked to the specified Kms.
    * @param kmsUri
+   * @param listener an optional connection listener (may be null)
    * @return
    * @throws RoomException
    */
-  KurentoClient getKurentoClient(final String kmsUri) throws RoomException;
+  KurentoClient getKurentoClient(final String kmsUri, final KurentoConnectionListener listener) throws RoomException;
 
   boolean destroyWhenUnused();
 }

@@ -10,6 +10,7 @@ import org.kurento.room.api.pojo.KurentoRoomId;
 import org.kurento.room.distributed.model.DistributedRemoteObject;
 import org.kurento.room.endpoint.DistributedSubscriberEndpoint;
 import org.kurento.room.interfaces.IRoomManager;
+import org.kurento.room.interfaces.KurentoMuxConnectionListener;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
@@ -67,8 +68,10 @@ public class DistributedSubscriberEndpointSerializer implements StreamSerializer
 
         // DistributedSubscriberEndpoint serialization
         final boolean connectedToPublisher = in.readBoolean();
-        final KurentoClient client = kmsManager.getKurentoClient(kmsUrl);
         final IRoomManager roomManager = context.getBean(IRoomManager.class);
+        final KurentoMuxConnectionListener muxListener = new KurentoMuxConnectionListener(roomManager);
+        final KurentoClient client = kmsManager.getKurentoClient(kmsUrl, muxListener);
+        muxListener.setClient(client);
         return (DistributedSubscriberEndpoint) context.getBean("distributedSubscriberEndpoint", dataChannels, endpointName, kmsUrl, streamId, client, webEndpointRemoteObj,
                 roomId, participantId, muteType, connectedToPublisher, roomManager);
     }
